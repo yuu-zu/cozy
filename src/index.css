@@ -1,0 +1,444 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script&family=Pacifico&family=Roboto&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode - Độ tương phản cao */
+    --background: 150 10% 98%;
+    --foreground: 150 20% 10%; /* Đen đậm, độ tương phản cao */
+    --card: 0 0% 100%;
+    --card-foreground: 150 20% 10%; /* Đen đậm */
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 20% 10%; /* Đen đậm */
+    --primary: 145 65% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 10% 92%;
+    --secondary-foreground: 150 20% 15%; /* Xám đậm */
+    --muted: 150 8% 94%;
+    --muted-foreground: 150 5% 35%; /* Xám đậm hơn cho dễ đọc */
+    --accent: 145 50% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 10% 80%; /* Viền đậm hơn */
+    --input: 150 10% 80%;
+    --ring: 145 65% 42%;
+    --radius: 0.75rem;
+
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 100% / 0.4;
+    --glass-shadow: 145 65% 42% / 0.1;
+
+    --mood-happy: 45 95% 55%;
+    --mood-sad: 220 70% 55%;
+    --mood-angry: 0 75% 55%;
+    --mood-calm: 160 60% 45%;
+    --mood-excited: 330 80% 60%;
+    --mood-neutral: 220 10% 60%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark Mode - Độ tương phản cao */
+    --background: 160 15% 6%; /* Nền tối hơn */
+    --foreground: 150 10% 97%; /* Trắng tinh, độ tương phản cao */
+    --card: 160 15% 9%;
+    --card-foreground: 150 10% 97%; /* Trắng tinh */
+    --popover: 160 15% 9%;
+    --popover-foreground: 150 10% 97%; /* Trắng tinh */
+    --primary: 145 65% 50%; /* Sáng hơn trong dark mode */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 160 12% 14%;
+    --secondary-foreground: 150 10% 88%; /* Sáng */
+    --muted: 160 12% 12%;
+    --muted-foreground: 150 5% 65%; /* Sáng hơn cho dễ đọc */
+    --accent: 145 50% 55%; /* Sáng hơn */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%; /* Sáng hơn */
+    --destructive-foreground: 0 0% 100%;
+    --border: 160 12% 20%; /* Viền rõ hơn */
+    --input: 160 12% 20%;
+    --ring: 145 65% 50%;
+
+    --glass-bg: 160 15% 9% / 0.8;
+    --glass-border: 145 30% 25% / 0.4;
+    --glass-shadow: 145 65% 50% / 0.15;
+
+    --sidebar-background: 160 15% 7%;
+    --sidebar-foreground: 150 10% 97%;
+    --sidebar-primary: 145 65% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 12% 12%;
+    --sidebar-accent-foreground: 150 10% 97%;
+    --sidebar-border: 160 12% 18%;
+    --sidebar-ring: 145 65% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-size: 18px; /* Tăng kích thước chữ cơ bản */
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1rem; /* Sử dụng rem để dễ scale */
+    line-height: 1.6; /* Tăng line-height để dễ đọc */
+  }
+}
+
+@layer components {
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: 0 8px 32px hsl(var(--glass-shadow));
+  }
+  .glass-card {
+    @apply glass rounded-2xl;
+  }
+  .glass-nav {
+    @apply glass;
+    border-bottom: 1px solid hsl(var(--glass-border));
+  }
+  .mood-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+  }
+  .font-mono-key {
+    font-family: 'Courier New', Courier, monospace;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Protect HTML formatting from Tailwind resets */
+.rich-text-content b,
+.rich-text-content strong {
+  font-weight: bold !important;
+}
+
+.rich-text-content i,
+.rich-text-content em {
+  font-style: italic !important;
+}
+
+.rich-text-content u {
+  text-decoration: underline !important;
+}
+
+.rich-text-content font[color] {
+  color: attr(color) !important;
+}
+
+.rich-text-content span[style] {
+  all: revert;
+}
+
+/* =========================================
+   TÙY CHỈNH REACT QUILL
+   ========================================= */
+
+/* 1. Tùy chỉnh Toolbar và Container (Bo góc, Nới chiều cao) */
+.custom-quill-editor .ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  background-color: transparent !important;
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  padding: 12px !important;
+}
+
+.custom-quill-editor .ql-container.ql-snow {
+  border: none !important;
+  font-family: inherit !important;
+  min-height: 250px !important; /* Đã nới rộng khung nhập liệu */
+}
+
+.custom-quill-editor .ql-editor {
+  min-height: 250px !important; /* Đã nới rộng khung nhập liệu */
+  padding: 16px !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* 2. Sửa lỗi Menu Dropdown (Font, Size) bị xấu */
+.custom-quill-editor .ql-picker-options {
+  background-color: hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  padding: 8px 0 !important;
+  margin-top: 4px;
+}
+
+.custom-quill-editor .ql-picker-item {
+  padding: 8px 16px !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.custom-quill-editor .ql-picker-item:hover,
+.custom-quill-editor .ql-picker-item.ql-selected {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* 3. Fix lỗi hiển thị icon SVG */
+.ql-snow .ql-stroke {
+  fill: none;
+  stroke: hsl(var(--foreground));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.ql-snow .ql-fill, 
+.ql-snow .ql-stroke.ql-fill {
+  fill: hsl(var(--foreground));
+  stroke: none;
+}
+
+.ql-snow .ql-picker {
+  color: hsl(var(--foreground));
+}
+
+/* 4. Hiệu ứng hover và Active cho icon */
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:focus .ql-stroke,
+.ql-snow .ql-toolbar button:focus .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke,
+.ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
+.ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+.ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-item:hover .ql-stroke,
+.ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke,
+.ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
+  stroke: hsl(var(--primary));
+}
+
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button:focus .ql-fill,
+.ql-snow .ql-toolbar button:focus .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-fill,
+.ql-snow .ql-toolbar button.ql-active .ql-fill,
+.ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
+.ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-fill,
+.ql-snow.ql-toolbar .ql-picker-item:hover .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-item:hover .ql-fill,
+.ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-fill,
+.ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-fill {
+  fill: hsl(var(--primary));
+}
+
+.ql-snow.ql-toolbar .ql-picker-label:hover,
+.ql-snow .ql-toolbar .ql-picker-label:hover,
+.ql-snow.ql-toolbar .ql-picker-label.ql-active,
+.ql-snow .ql-toolbar .ql-picker-label.ql-active,
+.ql-snow.ql-toolbar .ql-picker-item:hover,
+.ql-snow .ql-toolbar .ql-picker-item:hover,
+.ql-snow.ql-toolbar .ql-picker-item.ql-selected,
+.ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+  color: hsl(var(--primary));
+}
+/* =========================================
+   TÙY CHỈNH MENU FONT & CỠ CHỮ CHO QUILL
+   ========================================= */
+
+/* -- 1. HIỂN THỊ TÊN FONT TRONG DROPDOWN -- */
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="roboto"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="roboto"]::before {
+  content: 'Roboto';
+  font-family: 'Roboto', sans-serif;
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="dancing-script"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="dancing-script"]::before {
+  content: 'Dancing Script';
+  font-family: 'Dancing Script', cursive;
+}
+/* Thêm Font Times New Roman vào Dropdown */
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="times-new-roman"]::before {
+  content: 'Times New Roman';
+  font-family: 'Times New Roman', Times, serif;
+}
+
+/* Kích hoạt font Times New Roman cho nội dung khi gõ */
+.ql-font-times-new-roman { font-family: 'Times New Roman', Times, serif; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pacifico"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pacifico"]::before {
+  content: 'Pacifico';
+  font-family: 'Pacifico', cursive;
+}
+
+/* Kích hoạt font cho nội dung khi gõ */
+.ql-font-roboto { font-family: 'Roboto', sans-serif; }
+.ql-font-dancing-script { font-family: 'Dancing Script', cursive; font-size: 1.2em; }
+.ql-font-pacifico { font-family: 'Pacifico', cursive; }
+
+/* -- 2. HIỂN THỊ CỠ CHỮ BẰNG SỐ (PIXEL) TRONG DROPDOWN -- */
+/* Tự động lấy giá trị số (vd: 16px) in thẳng ra nhãn */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value]::before {
+  content: attr(data-value) !important;
+}
+
+/* Hiển thị cỡ chữ mặc định khi chưa chọn gì */
+.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: '14px' !important;
+}
+
+/* Nới rộng chiều ngang của nút chọn cỡ chữ cho số khỏi bị cắt */
+.custom-quill-editor .ql-picker.ql-size {
+  width: 70px !important;
+}
+.custom-quill-editor .ql-picker.ql-font {
+  width: 130px !important;
+}
+/* =========================================
+   TÙY CHỈNH BẢNG CHỌN MÀU (THÀNH HÌNH TRÒN)
+   Lưu ý: Chỉ áp dụng cho .ql-picker.ql-color và .ql-picker.ql-background
+   KHÔNG áp dụng cho .ql-picker.ql-align để không làm hỏng dropdown Align
+   ========================================= */
+
+/* Khung dropdown chứa màu - đảm bảo nền rõ ràng và z-index cao */
+/* Sử dụng .ql-picker.ql-color và .ql-picker.ql-background để không ảnh hưởng Align */
+.ql-snow .ql-picker.ql-color .ql-picker-options,
+.ql-snow .ql-picker.ql-background .ql-picker-options {
+  padding: 8px !important;
+  width: 140px !important; /* Độ rộng vừa đủ cho 4 màu / dòng */
+  border-radius: 0.75rem !important;
+  background-color: var(--background) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+  z-index: 9999 !important;
+}
+
+/* Dark mode - đảm bảo dropdown có nền tối rõ ràng */
+.dark .ql-snow .ql-picker.ql-color .ql-picker-options,
+.dark .ql-snow .ql-picker.ql-background .ql-picker-options {
+  background-color: #1f2937 !important; /* Gray-800 */
+  border-color: #374151 !important; /* Gray-700 */
+}
+
+/* Từng ô màu (Biến thành hình tròn) - ĐẢM BẢO HIỂN THỊ MÀU NỀN */
+/* Chỉ áp dụng cho color và background picker, KHÔNG áp dụng cho align */
+.ql-snow .ql-picker.ql-color .ql-picker-options .ql-picker-item,
+.ql-snow .ql-picker.ql-background .ql-picker-options .ql-picker-item {
+  border-radius: 50% !important; /* Bo tròn hoàn toàn */
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important; /* Đảm bảo không bị co lại */
+  min-height: 22px !important; /* Đảm bảo không bị co lại */
+  max-width: 22px !important; /* Đảm bảo không bị dãn ra */
+  max-height: 22px !important; /* Đảm bảo không bị dãn ra */
+  margin: 4px !important;
+  padding: 0 !important; /* Xóa padding để không ảnh hưởng kích thước */
+  border: 1px solid rgba(128, 128, 128, 0.3) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: inline-block !important;
+  flex-shrink: 0 !important; /* Ngăn co lại trong flex container */
+  box-sizing: border-box !important; /* Đảm bảo border không làm tăng kích thước */
+  /* Lưu ý: Màu nền cụ thể được set ở các rule bên dưới theo data-value */
+}
+
+/* Fix cho màu trắng - viền đậm hơn để dễ nhìn */
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#FFFFFF"],
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#ffffff"],
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#FFFFFF"],
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#ffffff"] {
+  border: 1px solid #d1d5db !important;
+}
+
+/* Fix cho màu đen - viền sáng hơn để dễ nhìn */
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#000000"],
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#000"],
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#000000"],
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#000"] {
+  border: 1px solid #6b7280 !important;
+}
+
+/* Hiệu ứng khi di chuột vào màu */
+.ql-snow .ql-picker.ql-color .ql-picker-item:hover,
+.ql-snow .ql-picker.ql-background .ql-picker-item:hover,
+.ql-snow .ql-picker.ql-color .ql-picker-item.ql-selected,
+.ql-snow .ql-picker.ql-background .ql-picker-item.ql-selected {
+  transform: scale(1.15); /* Phóng to nhẹ */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0,0,0,0.4) !important;
+}
+
+/* Đảm bảo màu sắc được áp dụng đúng bằng inline styles */
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#000000"] { background-color: #000000 !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#FFFFFF"] { background-color: #FFFFFF !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#EF4444"] { background-color: #EF4444 !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#22C55E"] { background-color: #22C55E !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#3B82F6"] { background-color: #3B82F6 !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#EAB308"] { background-color: #EAB308 !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#A855F7"] { background-color: #A855F7 !important; }
+.ql-snow .ql-picker.ql-color .ql-picker-item[data-value="#EC4899"] { background-color: #EC4899 !important; }
+
+/* Background picker colors */
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#000000"] { background-color: #000000 !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#FFFFFF"] { background-color: #FFFFFF !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#EF4444"] { background-color: #EF4444 !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#22C55E"] { background-color: #22C55E !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#3B82F6"] { background-color: #3B82F6 !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#EAB308"] { background-color: #EAB308 !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#A855F7"] { background-color: #A855F7 !important; }
+.ql-snow .ql-picker.ql-background .ql-picker-item[data-value="#EC4899"] { background-color: #EC4899 !important; }
+/* =========================================
+   THÊM THANH CUỘN CHO MENU FONT VÀ CỠ CHỮ
+   ========================================= */
+
+.custom-quill-editor .ql-picker.ql-font .ql-picker-options,
+.custom-quill-editor .ql-picker.ql-size .ql-picker-options {
+  max-height: 220px !important;
+  overflow-y: auto !important;
+}
+
+/* Làm đẹp thanh cuộn (Custom Scrollbar) */
+.custom-quill-editor .ql-picker-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-quill-editor .ql-picker-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-quill-editor .ql-picker-options::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5); /* Màu xám nhạt trong suốt */
+  border-radius: 10px;
+}
+
+.custom-quill-editor .ql-picker-options::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.8);
+}

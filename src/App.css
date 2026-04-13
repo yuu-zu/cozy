@@ -1,0 +1,126 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* =========================================
+   TÙY CHỈNH GIAO DIỆN REACT QUILL EDITOR (BẢN FIX LỖI DROPDOWN)
+   ========================================= */
+
+/* Làm trong suốt và bo góc thanh công cụ (Toolbar) */
+.custom-quill-editor .ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid var(--border, #e5e7eb) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important; /* Trong suốt nhẹ */
+  backdrop-filter: blur(4px);
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  padding: 10px 12px !important;
+  font-family: inherit !important;
+}
+
+/* Khu vực nhập chữ */
+.custom-quill-editor .ql-container.ql-snow {
+  border: none !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important; /* Kích thước chữ bằng với các input khác */
+}
+
+.custom-quill-editor .ql-editor {
+  min-height: 150px;
+  padding: 16px !important;
+  color: var(--foreground, #374151) !important;
+}
+
+/* -----------------------------------------
+   FIX LỖI MENU DROPDOWN (FONT, CỠ CHỮ) XẤU
+   ----------------------------------------- */
+
+/* Box chứa danh sách thả xuống */
+.custom-quill-editor .ql-picker.ql-expanded .ql-picker-options {
+  border: 1px solid var(--border, #e5e7eb) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  background-color: var(--background, #ffffff) !important; /* Đổ màu nền trắng/đen tùy theme */
+  margin-top: 4px;
+  padding: 6px 0 !important;
+  z-index: 50 !important; 
+}
+
+/* Từng item trong danh sách (vd: Sans Serif, Serif) */
+.custom-quill-editor .ql-picker-item {
+  padding: 6px 16px !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Hiệu ứng khi di chuột vào item */
+.custom-quill-editor .ql-picker-item:hover,
+.custom-quill-editor .ql-picker-item.ql-selected {
+  background-color: rgba(16, 185, 129, 0.1) !important; /* Xanh lá nhạt */
+  color: #10b981 !important; /* Màu xanh lá đồng bộ theme */
+}
+
+/* Căn chỉnh lại nhãn hiển thị trên thanh công cụ */
+.custom-quill-editor .ql-picker-label {
+  border-radius: 0.25rem;
+  padding-left: 8px !important;
+}
+
+.custom-quill-editor .ql-picker-label:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+/* -----------------------------------------
+   MÀU ICON KHI HOVER HOẶC ĐANG CHỌN (BOLD, ITALIC...)
+   ----------------------------------------- */
+.custom-quill-editor button:hover .ql-stroke,
+.custom-quill-editor .ql-active .ql-stroke,
+.custom-quill-editor .ql-picker-label:hover .ql-stroke,
+.custom-quill-editor .ql-picker-label.ql-active .ql-stroke {
+  stroke: #10b981 !important; /* Đổi icon thành màu xanh lá (hoặc màu primary của bạn) */
+}
+
+.custom-quill-editor button:hover .ql-fill,
+.custom-quill-editor .ql-active .ql-fill,
+.custom-quill-editor .ql-picker-label:hover .ql-fill,
+.custom-quill-editor .ql-picker-label.ql-active .ql-fill {
+  fill: #10b981 !important;
+}
