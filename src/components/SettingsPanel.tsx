@@ -46,7 +46,11 @@ export default function SettingsPanel({ onClose }: Props) {
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || file.size > 500 * 1024) return;
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      setProfileErr(t("settings.avatarTooLarge"));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setPhotoURL(reader.result as string);
     reader.readAsDataURL(file);
@@ -58,7 +62,7 @@ export default function SettingsPanel({ onClose }: Props) {
     setProfileMsg("");
     try {
       await updateUserProfile({ displayName: displayName.trim(), photoURL });
-      setProfileMsg("Da cap nhat thong tin!");
+      setProfileMsg(t("settings.profileUpdated"));
     } catch (err: any) {
       setProfileErr(getReadableAuthError(err));
     } finally {
@@ -77,17 +81,17 @@ export default function SettingsPanel({ onClose }: Props) {
     setPasswordMsg("");
 
     if (!user?.email) {
-      setPasswordErr("Khong tim thay email tai khoan.");
+      setPasswordErr(t("settings.accountEmailMissing"));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordErr("Mat khau moi khong khop");
+      setPasswordErr(t("settings.passwordMismatch"));
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordErr("Mat khau phai it nhat 6 ky tu");
+      setPasswordErr(t("settings.passwordTooShort"));
       return;
     }
 
@@ -99,15 +103,15 @@ export default function SettingsPanel({ onClose }: Props) {
         await createPendingPasswordChangeOtp(user.email, otpCode);
         await sendPasswordChangeOtpEmail({
           email: user.email,
-          displayName: displayName.trim() || user.displayName || "ban",
+          displayName: displayName.trim() || user.displayName || "bạn",
           otpCode,
         });
         setOtpRequested(true);
-        setPasswordMsg(`Da gui OTP toi ${user.email}. Vui long nhap ma de doi mat khau.`);
-        toast.success("Da gui OTP doi mat khau.");
+        setPasswordMsg(t("settings.otpSent", { email: user.email }));
+        toast.success(t("settings.otpSentToast"));
       } catch (err: any) {
         clearPendingPasswordChangeOtp();
-        setPasswordErr(getReadableAuthError(err, "Khong the gui OTP doi mat khau."));
+        setPasswordErr(getReadableAuthError(err, t("settings.otpSendError")));
       } finally {
         setSaving(false);
       }
@@ -116,7 +120,7 @@ export default function SettingsPanel({ onClose }: Props) {
     }
 
     if (otp.trim().length !== 6) {
-      setPasswordErr("Vui long nhap day du 6 so OTP.");
+      setPasswordErr(t("settings.otpInvalid"));
       return;
     }
 
@@ -124,21 +128,21 @@ export default function SettingsPanel({ onClose }: Props) {
     try {
       const isValidOtp = await verifyPendingPasswordChangeOtp(user.email, otp.trim());
       if (!isValidOtp) {
-        setPasswordErr("Ma OTP khong dung. Vui long thu lai.");
+        setPasswordErr(t("settings.otpInvalid"));
         setSaving(false);
         return;
       }
 
       await changePassword(newPassword);
       resetPasswordOtpFlow();
-      setPasswordMsg("Da doi mat khau thanh cong!");
+      setPasswordMsg(t("settings.passwordChanged"));
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Da doi mat khau thanh cong!");
+      toast.success(t("settings.passwordChangedToast"));
     } catch (err: any) {
       if (err?.code === "auth/requires-recent-login") {
         resetPasswordOtpFlow();
-        setPasswordErr("Phien dang nhap da het han. Vui long dang nhap lai roi thu doi mat khau.");
+        setPasswordErr(t("settings.sessionExpired"));
       } else {
         setPasswordErr(getReadableAuthError(err));
       }
@@ -148,80 +152,86 @@ export default function SettingsPanel({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm p-4">
-      <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-foreground">{t("settings.title", "Cài đặt")}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary text-muted-foreground">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4">
+      <div className="glass-card p-6 md:p-7 w-full max-w-xl max-h-[90vh] overflow-y-auto animate-scale-in">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-foreground">{t("settings.title")}</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-4 mb-8">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <User className="w-4 h-4 text-primary" /> {t("settings.personalInfo", "Thông tin cá nhân")}
+        <div className="space-y-5 mb-10">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <User className="w-5 h-5 text-primary" /> {t("settings.personalInfo")}
           </h3>
 
           <div className="flex items-center gap-4">
             <div className="relative">
               {photoURL ? (
-                <img src={photoURL} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+                <img
+                  src={photoURL}
+                  alt=""
+                  className="w-20 h-20 rounded-full object-cover border-2 border-primary/20"
+                />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center">
-                  <span className="text-xl font-bold text-primary">{(displayName || "U").charAt(0).toUpperCase()}</span>
+                <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-primary">
+                    {(displayName || "U").charAt(0).toUpperCase()}
+                  </span>
                 </div>
               )}
               <button
                 onClick={() => fileRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
               >
-                <Camera className="w-3.5 h-3.5" />
+                <Camera className="w-4 h-4" />
               </button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatarChange} />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <p className="text-base text-muted-foreground break-all">{user?.email}</p>
             </div>
           </div>
 
           <input
             type="text"
-            placeholder={t("settings.displayName", "Tên hiển thị")}
+            placeholder={t("settings.displayName")}
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
           />
 
-          {profileErr && <p className="text-destructive text-sm">{profileErr}</p>}
-          {profileMsg && <p className="text-primary text-sm">{profileMsg}</p>}
+          {profileErr && <p className="text-destructive text-sm leading-6">{profileErr}</p>}
+          {profileMsg && <p className="text-primary text-sm leading-6">{profileMsg}</p>}
 
           <button
             onClick={handleSaveProfile}
             disabled={saving}
-            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium text-base hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <Save className="w-4 h-4" /> {t("settings.saveInfo", "Lưu thông tin")}
+            <Save className="w-4 h-4" /> {t("settings.saveInfo")}
           </button>
         </div>
 
         <div className="space-y-4">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <Lock className="w-4 h-4 text-primary" /> {t("settings.changePassword", "Đổi mật khẩu")}
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Lock className="w-5 h-5 text-primary" /> {t("settings.changePassword")}
           </h3>
 
           <input
             type="password"
-            placeholder={t("settings.newPassword", "Mật khẩu mới")}
+            placeholder={t("settings.newPassword")}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
           />
           <input
             type="password"
-            placeholder={t("settings.confirmPassword", "Xác nhận mật khẩu mới")}
+            placeholder={t("settings.confirmPassword")}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
           />
 
           {otpRequested && (
@@ -229,27 +239,27 @@ export default function SettingsPanel({ onClose }: Props) {
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder="Nhap ma OTP 6 so"
+                placeholder={t("settings.enterOtp")}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none tracking-[0.35em]"
+                className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none tracking-[0.35em]"
               />
-              <p className="text-xs text-muted-foreground text-center">
-                Ma OTP co hieu luc trong {getOtpExpiryMinutes()} phut.
+              <p className="text-sm text-muted-foreground text-center">
+                {t("settings.otpExpires", { minutes: getOtpExpiryMinutes() })}
               </p>
             </>
           )}
 
-          {passwordErr && <p className="text-destructive text-sm">{passwordErr}</p>}
-          {passwordMsg && <p className="text-primary text-sm">{passwordMsg}</p>}
+          {passwordErr && <p className="text-destructive text-sm leading-6">{passwordErr}</p>}
+          {passwordMsg && <p className="text-primary text-sm leading-6">{passwordMsg}</p>}
 
           <div className="flex gap-3">
             <button
               onClick={handleChangePassword}
               disabled={saving || !newPassword || !confirmPassword}
-              className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground font-medium text-base hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <Lock className="w-4 h-4" /> {otpRequested ? t("settings.verifyOtp", "Xác minh OTP và đổi mật khẩu") : t("settings.sendOtp", "Gửi OTP đổi mật khẩu")}
+              <Lock className="w-4 h-4" /> {otpRequested ? t("settings.verifyOtp") : t("settings.sendOtp")}
             </button>
             {otpRequested && (
               <button
@@ -259,16 +269,15 @@ export default function SettingsPanel({ onClose }: Props) {
                   setPasswordMsg("");
                 }}
                 disabled={saving}
-                className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                className="px-4 py-3 rounded-xl border border-border text-base text-muted-foreground hover:bg-secondary disabled:opacity-50"
               >
-                {t("settings.cancel", "Hủy")}
+                {t("settings.cancel")}
               </button>
             )}
           </div>
         </div>
 
-        {/* Key Management Section */}
-        <div className="border-t border-border pt-6 mt-6">
+        <div className="border-t border-border pt-6 mt-8">
           <KeyManagement />
         </div>
       </div>

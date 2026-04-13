@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Lock, BookOpen, Users, Moon, Sun, Calendar, BarChart3, Trash2, Menu, X, Globe, Github, GraduationCap } from "lucide-react";
+import { Shield, Lock, BookOpen, Users, Moon, Sun, Calendar, BarChart3, Trash2, Menu, X, Globe, Github, GraduationCap, ArrowUp } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useTranslation } from "react-i18next";
 
@@ -28,6 +28,11 @@ export default function LandingPage() {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const logoStyle = {
+    filter:
+      "drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff)",
+  };
 
   const scrollTo = (id: string) => {
     setMobileMenu(false);
@@ -35,13 +40,24 @@ export default function LandingPage() {
     el?.scrollIntoView({ behavior: "smooth" });
   };
 
+  React.useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 320);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-nav">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary" />
+            <img
+              src="/logo-hub.webp"
+              alt="Hub Logo"
+              className="h-9 w-auto object-contain"
+              style={logoStyle}
+            />
             <span className="text-xl font-bold tracking-wider text-foreground">COZY</span>
           </div>
 
@@ -110,18 +126,22 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-10 text-center max-w-2xl">
-          {/* Placeholder logo */}
-          <div className="w-24 h-24 mx-auto mb-8 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <Shield className="w-12 h-12 text-primary" />
+          <div className="mx-auto mb-8 flex items-center justify-center">
+            <img
+              src="/logo-hub.webp"
+              alt="Hub Logo"
+              className="h-24 w-auto object-contain"
+              style={logoStyle}
+            />
           </div>
 
-          <h1 className="text-6xl sm:text-8xl font-bold tracking-widest text-foreground mb-4">
+          <h1 className="text-6xl sm:text-8xl font-bold tracking-widest text-foreground mb-5">
             COZY
           </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground mb-2">
+          <p className="text-xl sm:text-2xl text-muted-foreground mb-3">
             {t("app.title")}
           </p>
-          <p className="text-sm text-muted-foreground mb-10 max-w-md mx-auto">
+          <p className="text-base text-muted-foreground mb-12 max-w-xl mx-auto leading-8">
             {t("landing.subtitle")}
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
@@ -142,20 +162,20 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20 px-4">
+      <section id="features" className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-foreground mb-3">{t('landing.features.title')}</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">
+          <p className="text-center text-muted-foreground text-base leading-8 mb-14 max-w-2xl mx-auto">
             {t('landing.features.description')}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="glass-card p-6 hover:border-primary/30 transition-colors">
+              <div key={i} className="glass-card p-7 hover:border-primary/30 transition-colors">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
                   {f.icon}
                 </div>
-                <h3 className="font-semibold text-foreground mb-2">{t(f.titleKey)}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{t(f.descKey)}</p>
+                <h3 className="font-semibold text-foreground text-lg mb-3">{t(f.titleKey)}</h3>
+                <p className="text-base text-muted-foreground leading-8">{t(f.descKey)}</p>
               </div>
             ))}
           </div>
@@ -163,10 +183,10 @@ export default function LandingPage() {
       </section>
 
       {/* Team */}
-      <section id="team" className="py-20 px-4">
+      <section id="team" className="py-24 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-foreground mb-3">{t('landing.team.title')}</h2>
-          <p className="text-center text-muted-foreground mb-12">{t('landing.team.description')}</p>
+          <p className="text-center text-muted-foreground text-base mb-14">{t('landing.team.description')}</p>
           
           {/* Giảng viên hướng dẫn */}
           <div className="mb-12 text-center">
@@ -177,15 +197,15 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
             {teamMembers.map((m, i) => (
               <div key={i} className="text-center">
                 <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center">
                   <span className="text-lg font-bold text-primary">{m.initials}</span>
                 </div>
-                <h4 className="font-semibold text-foreground text-sm leading-tight">{m.name}</h4>
-                <p className="text-xs text-muted-foreground mt-1">MSSV: {m.mssv}</p>
-                <p className="text-xs text-primary mt-1 leading-tight">{t(m.roleKey)}</p>
+                <h4 className="font-semibold text-foreground text-base leading-tight">{m.name}</h4>
+                <p className="text-sm text-muted-foreground mt-2">MSSV: {m.mssv}</p>
+                <p className="text-sm text-primary mt-2 leading-6">{t(m.roleKey)}</p>
               </div>
             ))}
           </div>
@@ -197,7 +217,12 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-5 h-5 text-primary" />
+              <img
+                src="/logo-hub.webp"
+                alt="Hub Logo"
+                className="h-6 w-auto object-contain"
+                style={logoStyle}
+              />
               <span className="font-bold tracking-wider text-foreground">COZY</span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-3">
@@ -229,6 +254,16 @@ export default function LandingPage() {
           <p className="text-xs text-muted-foreground">{t('landing.footer.copyright')}</p>
         </div>
       </footer>
+
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:-translate-y-0.5"
+        >
+          <ArrowUp className="h-4 w-4" />
+          {t("landing.scrollTop")}
+        </button>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Shield, Lock, Mail, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   clearPendingRegistrationOtp,
   createPendingRegistrationOtp,
@@ -13,34 +14,28 @@ import {
 } from "@/lib/emailOtp";
 import { getReadableAuthError } from "@/lib/authErrorMessages";
 
-/**
- * Hàm kiểm tra password mạnh - Trả về Boolean
- * Yêu cầu: Tối thiểu 8 ký tự, có ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số và 1 ký tự đặc biệt
- */
 function validateStrongPassword(password: string): boolean {
   if (password.length < 8) return false;
   if (!/[A-Z]/.test(password)) return false;
   if (!/[a-z]/.test(password)) return false;
   if (!/\d/.test(password)) return false;
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return false;
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) return false;
   return true;
 }
 
-/**
- * Hàm lấy danh sách lỗi validation password
- */
-function getPasswordErrors(password: string): string[] {
+function getPasswordErrors(password: string, t: (key: string) => string): string[] {
   const errors: string[] = [];
-  if (password.length < 8) errors.push("Mật khẩu phải có ít nhất 8 ký tự");
-  if (!/[A-Z]/.test(password)) errors.push("Mật khẩu phải có ít nhất 1 chữ hoa (A-Z)");
-  if (!/[a-z]/.test(password)) errors.push("Mật khẩu phải có ít nhất 1 chữ thường (a-z)");
-  if (!/\d/.test(password)) errors.push("Mật khẩu phải có ít nhất 1 chữ số (0-9)");
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push("Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)");
+  if (password.length < 8) errors.push(t("auth.passwordRequirement.length"));
+  if (!/[A-Z]/.test(password)) errors.push(t("auth.passwordRequirement.uppercase"));
+  if (!/[a-z]/.test(password)) errors.push(t("auth.passwordRequirement.lowercase"));
+  if (!/\d/.test(password)) errors.push(t("auth.passwordRequirement.number"));
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+    errors.push(t("auth.passwordRequirement.special"));
+  }
   return errors;
 }
 
 type AuthMode = "login" | "register" | "forgot" | "verifyOtp";
-const EMAIL_ALREADY_REGISTERED_MESSAGE = "Email nay da duoc dang ky. Vui long dang nhap hoac su dung mot email khac.";
 
 interface PendingRegistration {
   email: string;
@@ -51,7 +46,15 @@ interface PendingRegistration {
 type VerificationFlow = "register" | "existingAccount";
 
 export default function AuthPage() {
-  const { login, register, verifyExistingAccountEmail, checkEmailExists, checkDisplayNameExists, resetPassword } = useAuth();
+  const { t } = useTranslation();
+  const {
+    login,
+    register,
+    verifyExistingAccountEmail,
+    checkEmailExists,
+    checkDisplayNameExists,
+    resetPassword,
+  } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -62,14 +65,16 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
   const [verificationFlow, setVerificationFlow] = useState<VerificationFlow>("register");
+
+  const EMAIL_ALREADY_REGISTERED_MESSAGE = t("auth.emailRegistered");
 
   const resetMessages = () => {
     setError("");
     setSuccess("");
-    setPasswordError("");
+    setPasswordErrors([]);
   };
 
   const resetRegistrationFlow = () => {
@@ -99,9 +104,9 @@ export default function AuthPage() {
         displayName: registration.displayName,
         otpCode,
       });
-    } catch (error) {
+    } catch (sendError) {
       clearPendingRegistrationOtp();
-      throw error;
+      throw sendError;
     }
   };
 
@@ -109,7 +114,7 @@ export default function AuthPage() {
     registration: PendingRegistration,
     flow: VerificationFlow,
     successMessage: string,
-    toastMessage: string
+    toastMessage: string,
   ) => {
     await sendOtpForRegistration(registration);
     setPendingRegistration(registration);
@@ -119,6 +124,15 @@ export default function AuthPage() {
     setError("");
     setSuccess(successMessage);
     toast.success(toastMessage);
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (mode === "register" && value) {
+      setPasswordErrors(getPasswordErrors(value, t));
+    } else {
+      setPasswordErrors([]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -132,30 +146,28 @@ export default function AuthPage() {
       } else if (mode === "register") {
         const trimmedDisplayName = displayName.trim();
         const trimmedEmail = email.trim();
+        const currentPasswordErrors = getPasswordErrors(password, t);
 
-        // Kiểm tra password mạnh lập tức
-        if (!validateStrongPassword(password)) {
-          setError("Mật khẩu không đạt chuẩn. Vui lòng kiểm tra các yêu cầu bên dưới.");
-          setPasswordError("Mật khẩu tối thiểu 8 ký tự, có 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt");
+        if (currentPasswordErrors.length > 0) {
+          setPasswordErrors(currentPasswordErrors);
+          setError(t("auth.passwordInvalid"));
           setLoading(false);
           return;
         }
 
         if (!trimmedDisplayName) {
-          setError("Vui long nhap ten hien thi.");
+          setError(t("auth.displayNameRequired"));
           setLoading(false);
           return;
         }
 
-        // Kiểm tra xem displayName đã tồn tại chưa
         const displayNameExists = await checkDisplayNameExists(trimmedDisplayName);
         if (displayNameExists) {
-          setError("Tên tài khoản này đã có người sử dụng, vui lòng chọn tên khác.");
+          setError(t("auth.displayNameTaken"));
           setLoading(false);
           return;
         }
 
-        // Kiểm tra xem email đã tồn tại chưa
         const emailExists = await checkEmailExists(trimmedEmail);
         if (emailExists) {
           setError(EMAIL_ALREADY_REGISTERED_MESSAGE);
@@ -172,30 +184,33 @@ export default function AuthPage() {
         await beginOtpVerification(
           nextRegistration,
           "register",
-          `Ma OTP da duoc gui toi ${trimmedEmail}. Vui long kiem tra email cua ban.`,
-          "Da gui ma OTP qua email."
+          t("auth.otpSent", { email: trimmedEmail }),
+          t("auth.otpSentToast"),
         );
         return;
       } else if (mode === "forgot") {
         await resetPassword(email);
-        setSuccess("Da gui link dat lai mat khau qua email. Vui long kiem tra hop thu.");
+        setSuccess(t("auth.resetSent"));
       } else if (mode === "verifyOtp") {
         if (!pendingRegistration) {
-          setError("Phien dang ky khong con hop le. Vui long dang ky lai.");
+          setError(t("auth.sessionExpired"));
           setLoading(false);
           return;
         }
 
         const normalizedOtp = otp.trim();
         if (normalizedOtp.length !== 6) {
-          setError("Vui long nhap day du 6 so OTP.");
+          setError(t("auth.otpLength"));
           setLoading(false);
           return;
         }
 
-        const isValidOtp = await verifyPendingRegistrationOtp(pendingRegistration.email, normalizedOtp);
+        const isValidOtp = await verifyPendingRegistrationOtp(
+          pendingRegistration.email,
+          normalizedOtp,
+        );
         if (!isValidOtp) {
-          setError("Ma OTP khong dung. Vui long thu lai.");
+          setError(t("auth.otpInvalid"));
           setLoading(false);
           return;
         }
@@ -204,29 +219,31 @@ export default function AuthPage() {
           await register(
             pendingRegistration.email,
             pendingRegistration.password,
-            pendingRegistration.displayName
+            pendingRegistration.displayName,
           );
 
+          const verifiedEmail = pendingRegistration.email;
           resetRegistrationFlow();
-          setEmail(pendingRegistration.email);
+          setEmail(verifiedEmail);
           setPassword("");
           setDisplayName("");
           setMode("login");
-          setSuccess("Dang ky thanh cong. Vui long dang nhap de tiep tuc.");
-          toast.success("Dang ky thanh cong!");
+          setSuccess(t("auth.registerSuccess"));
+          toast.success(t("auth.registerSuccessToast"));
         } else {
           await verifyExistingAccountEmail(
             pendingRegistration.email,
-            pendingRegistration.password
+            pendingRegistration.password,
           );
 
+          const verifiedEmail = pendingRegistration.email;
           resetRegistrationFlow();
-          setEmail(pendingRegistration.email);
+          setEmail(verifiedEmail);
           setPassword("");
           setDisplayName("");
           setMode("login");
-          setSuccess("Email da duoc xac minh. Vui long dang nhap lai.");
-          toast.success("Xac minh email thanh cong!");
+          setSuccess(t("auth.verifySuccess"));
+          toast.success(t("auth.verifySuccessToast"));
         }
       }
     } catch (err: any) {
@@ -240,11 +257,13 @@ export default function AuthPage() {
         await beginOtpVerification(
           pendingAccount,
           "existingAccount",
-          `Tai khoan nay chua xac minh. Ma OTP da duoc gui toi ${pendingAccount.email}.`,
-          "Da gui OTP xac minh email."
+          t("auth.accountUnverified", { email: pendingAccount.email }),
+          t("auth.accountUnverifiedToast"),
         );
         return;
-      } else if (err?.code === "auth/email-already-in-use") {
+      }
+
+      if (err?.code === "auth/email-already-in-use") {
         resetRegistrationFlow();
         setMode("register");
         setError(EMAIL_ALREADY_REGISTERED_MESSAGE);
@@ -258,7 +277,7 @@ export default function AuthPage() {
 
   const handleResendOtp = async () => {
     if (!pendingRegistration) {
-      setError("Phien dang ky khong con hop le. Vui long dang ky lai.");
+      setError(t("auth.sessionExpired"));
       return;
     }
 
@@ -267,14 +286,23 @@ export default function AuthPage() {
 
     try {
       await sendOtpForRegistration(pendingRegistration);
-      setSuccess(`Ma OTP moi da duoc gui toi ${pendingRegistration.email}.`);
-      toast.success("Da gui lai ma OTP.");
+      setSuccess(t("auth.resendOtpSuccess", { email: pendingRegistration.email }));
+      toast.success(t("auth.resendOtpToast"));
     } catch (err: any) {
-      setError(getReadableAuthError(err, "Khong the gui lai OTP."));
+      setError(getReadableAuthError(err, t("auth.resendOtpError")));
     } finally {
       setLoading(false);
     }
   };
+
+  const subtitle =
+    mode === "login"
+      ? t("auth.loginSubtitle")
+      : mode === "register"
+        ? t("auth.registerSubtitle")
+        : mode === "verifyOtp"
+          ? t("auth.verifySubtitle")
+          : t("auth.forgotSubtitle");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
@@ -283,33 +311,28 @@ export default function AuthPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
-      <div className="glass-card p-8 w-full max-w-md animate-scale-in relative z-10">
+      <div className="glass-card p-8 md:p-10 w-full max-w-lg animate-scale-in relative z-10">
         <div className="text-center mb-8">
-          <button onClick={() => navigate("/")} className="absolute top-4 left-4 p-2 rounded-lg hover:bg-secondary text-muted-foreground">
+          <button
+            onClick={() => navigate("/")}
+            className="absolute top-4 left-4 p-2 rounded-lg hover:bg-secondary text-muted-foreground"
+          >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+          <div className="inline-flex items-center justify-center w-18 h-18 rounded-2xl bg-primary/10 mb-4">
             <Shield className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-foreground tracking-wider">COZY</h1>
-          <p className="text-muted-foreground mt-2">
-            {mode === "login"
-              ? "Dang nhap de tiep tuc"
-              : mode === "register"
-              ? "Tao tai khoan moi"
-              : mode === "verifyOtp"
-              ? "Xac minh email bang OTP"
-              : "Quen mat khau"}
-          </p>
+          <p className="text-muted-foreground mt-2 text-base">{subtitle}</p>
           {mode === "register" && (
-            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
-              <Lock className="w-3 h-3" />
-              He thong se tao cap khoa RSA cho ban
+            <p className="text-sm text-muted-foreground mt-2 flex items-center justify-center gap-1">
+              <Lock className="w-4 h-4" />
+              {t("auth.generateKeys")}
             </p>
           )}
           {mode === "verifyOtp" && pendingRegistration && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Nhap ma 6 so da gui toi <span className="font-medium text-foreground">{pendingRegistration.email}</span>
+            <p className="text-sm text-muted-foreground mt-2">
+              {t("auth.enterOtpFor", { email: pendingRegistration.email })}
             </p>
           )}
         </div>
@@ -320,10 +343,10 @@ export default function AuthPage() {
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Ten hien thi"
+                placeholder={t("auth.displayNamePlaceholder")}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground"
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground"
               />
             </div>
           )}
@@ -332,12 +355,12 @@ export default function AuthPage() {
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={mode === "verifyOtp"}
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground disabled:opacity-70"
+              className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground disabled:opacity-70"
             />
           </div>
 
@@ -347,23 +370,11 @@ export default function AuthPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Mat khau"
+                  placeholder={t("auth.passwordPlaceholder")}
                   value={password}
-                  onChange={(e) => {
-                    const newPassword = e.target.value;
-                    setPassword(newPassword);
-                    if (mode === "register") {
-                      if (!newPassword) {
-                        setPasswordError("");
-                      } else if (!validateStrongPassword(newPassword)) {
-                        setPasswordError("Mật khẩu tối thiểu 8 ký tự, có 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt");
-                      } else {
-                        setPasswordError("");
-                      }
-                    }
-                  }}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
                   required
-                  className="w-full pl-10 pr-12 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground"
+                  className="w-full pl-10 pr-12 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground"
                 />
                 <button
                   type="button"
@@ -373,10 +384,14 @@ export default function AuthPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {mode === "register" && passwordError && (
-                <p style={{color: '#ef4444', fontSize: '12px', marginTop: '5px', paddingLeft: '10px'}}>
-                  {passwordError}
-                </p>
+              {mode === "register" && passwordErrors.length > 0 && (
+                <div className="mt-3 rounded-xl bg-destructive/8 border border-destructive/15 px-4 py-3">
+                  {passwordErrors.map((passwordError) => (
+                    <p key={passwordError} className="text-destructive text-sm leading-6">
+                      {passwordError}
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -389,47 +404,59 @@ export default function AuthPage() {
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder="Nhap ma OTP 6 so"
+                  placeholder={t("auth.otpPlaceholder")}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground tracking-[0.35em] placeholder:tracking-normal placeholder:text-muted-foreground"
+                  className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground tracking-[0.35em] placeholder:tracking-normal placeholder:text-muted-foreground"
                 />
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Ma OTP co hieu luc trong {getOtpExpiryMinutes()} phut.
+              <p className="text-sm text-muted-foreground text-center">
+                {t("auth.otpExpires", { minutes: getOtpExpiryMinutes() })}
               </p>
             </div>
           )}
 
           {mode === "login" && (
-            <button type="button" onClick={() => switchMode("forgot")} className="text-sm text-primary hover:underline">
-              Quen mat khau?
+            <button
+              type="button"
+              onClick={() => switchMode("forgot")}
+              className="text-sm text-primary hover:underline"
+            >
+              {t("auth.forgotPassword")}
             </button>
           )}
 
-          {error && <p className="text-destructive text-sm text-center bg-destructive/10 p-2 rounded-lg">{error}</p>}
-          {success && <p className="text-primary text-sm text-center bg-primary/10 p-2 rounded-lg">{success}</p>}
+          {error && (
+            <p className="text-destructive text-sm text-center bg-destructive/10 p-3 rounded-lg">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="text-primary text-sm text-center bg-primary/10 p-3 rounded-lg">
+              {success}
+            </p>
+          )}
 
           <button
             type="submit"
-            disabled={loading || (mode === "register" && (!email.trim() || !displayName.trim() || !!passwordError))}
-            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+            disabled={loading || (mode === "register" && (!email.trim() || !displayName.trim() || passwordErrors.length > 0))}
+            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all disabled:opacity-50"
           >
             {loading
               ? mode === "login"
-                ? "Dang dang nhap..."
+                ? t("auth.loggingIn")
                 : mode === "register"
-                ? "Dang gui OTP..."
-                : mode === "verifyOtp"
-                ? "Dang xac minh..."
-                : "Dang gui..."
+                  ? t("auth.sendingOtp")
+                  : mode === "verifyOtp"
+                    ? t("auth.verifyingOtp")
+                    : t("auth.sendingReset")
               : mode === "login"
-              ? "Dang nhap"
-              : mode === "register"
-              ? "Gui ma OTP"
-              : mode === "verifyOtp"
-              ? "Xac minh OTP"
-              : "Gui link dat lai mat khau"}
+                ? t("auth.login")
+                : mode === "register"
+                  ? t("auth.sendOtp")
+                  : mode === "verifyOtp"
+                    ? t("auth.verifyOtp")
+                    : t("auth.resetPassword")}
           </button>
         </form>
 
@@ -440,7 +467,7 @@ export default function AuthPage() {
               onClick={() => switchMode(verificationFlow === "existingAccount" ? "login" : "register")}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              {verificationFlow === "existingAccount" ? "Quay lai dang nhap" : "Quay lai dang ky"}
+              {verificationFlow === "existingAccount" ? t("auth.backToLogin") : t("auth.backToRegister")}
             </button>
             <button
               type="button"
@@ -448,7 +475,7 @@ export default function AuthPage() {
               disabled={loading}
               className="text-primary font-semibold hover:underline disabled:opacity-50"
             >
-              Gui lai OTP
+              {t("auth.resendOtp")}
             </button>
           </div>
         )}
@@ -456,19 +483,25 @@ export default function AuthPage() {
         <div className="text-center text-sm text-muted-foreground mt-6 space-y-1">
           {mode === "login" && (
             <p>
-              Chua co tai khoan?{" "}
-              <button onClick={() => switchMode("register")} className="text-primary font-semibold hover:underline">Dang ky</button>
+              {t("auth.noAccount")}{" "}
+              <button onClick={() => switchMode("register")} className="text-primary font-semibold hover:underline">
+                {t("auth.register")}
+              </button>
             </p>
           )}
           {mode === "register" && (
             <p>
-              Da co tai khoan?{" "}
-              <button onClick={() => switchMode("login")} className="text-primary font-semibold hover:underline">Dang nhap</button>
+              {t("auth.haveAccount")}{" "}
+              <button onClick={() => switchMode("login")} className="text-primary font-semibold hover:underline">
+                {t("auth.login")}
+              </button>
             </p>
           )}
           {mode === "forgot" && (
             <p>
-              <button onClick={() => switchMode("login")} className="text-primary font-semibold hover:underline">Quay lai dang nhap</button>
+              <button onClick={() => switchMode("login")} className="text-primary font-semibold hover:underline">
+                {t("auth.backToLogin")}
+              </button>
             </p>
           )}
         </div>

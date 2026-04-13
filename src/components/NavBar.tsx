@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useTranslation } from "react-i18next";
@@ -16,9 +16,14 @@ export default function NavBar({ onOpenSettings }: Props) {
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const isVietnamese = i18n.language === "vi";
+  const logoStyle = {
+    filter:
+      "drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff)",
+  };
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === "vi" ? "en" : "vi";
+    const newLang = isVietnamese ? "en" : "vi";
     i18n.changeLanguage(newLang);
     localStorage.setItem("i18nextLng", newLang);
   };
@@ -41,7 +46,12 @@ export default function NavBar({ onOpenSettings }: Props) {
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {location.pathname === "/" ? (
-            <img src="/logo-hub.png" alt="Logo" className="h-8 w-auto object-contain" />
+            <img
+              src="/logo-hub.webp"
+              alt="Hub Logo"
+              className="h-8 w-auto object-contain"
+              style={logoStyle}
+            />
           ) : (
             <Shield className="w-5 h-5 text-primary" />
           )}
@@ -54,22 +64,22 @@ export default function NavBar({ onOpenSettings }: Props) {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-xl hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
-            title={theme === "light" ? "Chế độ tối" : "Chế độ sáng"}
+            title={theme === "light" ? "Dark mode" : "Light mode"}
           >
             {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </button>
           <button
             onClick={toggleLanguage}
             className="border border-gray-300 rounded-full px-3 py-1 flex items-center gap-2 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800 transition-all"
-            title={i18n.language === "vi" ? t("header.switchToEnglish") : t("header.switchToVietnamese")}
+            title={isVietnamese ? t("header.switchToEnglish") : t("header.switchToVietnamese")}
           >
             <Globe className="w-4 h-4" />
-            <span>{i18n.language === "vi" ? "EN" : "VN"}</span>
+            <span>{isVietnamese ? "EN" : "VN"}</span>
           </button>
           <button
             onClick={handleBackup}
             className="p-2 rounded-xl hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
-            title="Sao lưu dữ liệu"
+            title={isVietnamese ? "Sao lưu dữ liệu" : "Back up data"}
           >
             <Download className="w-4 h-4" />
           </button>
@@ -77,7 +87,7 @@ export default function NavBar({ onOpenSettings }: Props) {
             <button
               onClick={onOpenSettings}
               className="p-2 rounded-xl hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
-              title="Cài đặt"
+              title={t("settings.title")}
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -85,7 +95,7 @@ export default function NavBar({ onOpenSettings }: Props) {
           <button
             onClick={logout}
             className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-            title="Đăng xuất"
+            title={isVietnamese ? "Đăng xuất" : "Log out"}
           >
             <LogOut className="w-4 h-4" />
           </button>

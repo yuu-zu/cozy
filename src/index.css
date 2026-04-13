@@ -90,13 +90,14 @@
     @apply border-border;
   }
   html {
-    font-size: 18px; /* Tăng kích thước chữ cơ bản */
+    font-size: 19px;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 1rem; /* Sử dụng rem để dễ scale */
-    line-height: 1.6; /* Tăng line-height để dễ đọc */
+    font-size: 1rem;
+    line-height: 1.7;
   }
 }
 
@@ -109,14 +110,17 @@
     box-shadow: 0 8px 32px hsl(var(--glass-shadow));
   }
   .glass-card {
-    @apply glass rounded-2xl;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--glass-border));
+    background: hsl(var(--background) / 0.94);
+    box-shadow: 0 18px 50px -24px rgba(15, 23, 42, 0.35);
   }
   .glass-nav {
     @apply glass;
     border-bottom: 1px solid hsl(var(--glass-border));
   }
   .mood-chip {
-    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium;
   }
   .font-mono-key {
     font-family: 'Courier New', Courier, monospace;
@@ -442,3 +446,4 @@
 .custom-quill-editor .ql-picker-options::-webkit-scrollbar-thumb:hover {
   background-color: rgba(107, 114, 128, 0.8);
 }
+

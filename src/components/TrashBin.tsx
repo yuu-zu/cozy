@@ -3,24 +3,27 @@ import { useTranslation } from "react-i18next";
 import { ref, onValue, update, remove } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { forceRichTextStyles } from "@/lib/utils";
 import { MOOD_CONFIG, Mood } from "@/types/diary";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface TrashedDiary {
   id: string;
-  type: "personal" | "received" | "sent"; // Loại nhật ký
+  type: "personal" | "received" | "sent";
   title?: string;
   encryptedTitle?: string;
-  content?: string;
-  encryptedContent?: string;
   mood?: Mood;
-  fromName?: string; // Cho received diaries
-  toName?: string; // Cho sent diaries
+  fromName?: string;
+  toName?: string;
   createdAt: number;
   trashedAt: number;
   isTrashed: boolean;
+}
+
+interface TrashActionState {
+  diary: TrashedDiary;
+  action: "restore" | "delete";
 }
 
 export default function TrashBin() {
@@ -30,15 +33,14 @@ export default function TrashBin() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<TrashActionState | null>(null);
 
-  // Lắng nghe trashed diaries từ cả 3 nguồn: personal, received, sent
   useEffect(() => {
     if (!user?.uid) return;
 
     const allTrashedDiaries: TrashedDiary[] = [];
     let completedSources = 0;
 
-    // 1. Lắng nghe personal diaries (isTrashed === true)
     const personalDiariesRef = ref(db, `diaries/${user.uid}`);
     const unsubPersonal = onValue(personalDiariesRef, (snapshot) => {
       const data = snapshot.val();
@@ -56,7 +58,6 @@ export default function TrashBin() {
             }))
         : [];
 
-      // Cập nhật danh sách personal trashed
       setTrashedDiaries((prev) => {
         const nonPersonal = prev.filter((d) => d.type !== "personal");
         return [...nonPersonal, ...personalTrashed];
@@ -66,7 +67,6 @@ export default function TrashBin() {
       if (completedSources === 3) setLoading(false);
     });
 
-    // 2. Lắng nghe received shared diaries (isTrashed === true)
     const receivedDiariesRef = ref(db, `sharedDiaries/${user.uid}`);
     const unsubReceived = onValue(receivedDiariesRef, (snapshot) => {
       const data = snapshot.val();
@@ -93,7 +93,6 @@ export default function TrashBin() {
       if (completedSources === 3) setLoading(false);
     });
 
-    // 3. Lắng nghe sent shared diaries (isTrashed === true)
     const sentDiariesRef = ref(db, `sentDiaries/${user.uid}`);
     const unsubSent = onValue(sentDiariesRef, (snapshot) => {
       const data = snapshot.val();
@@ -128,11 +127,7 @@ export default function TrashBin() {
     };
   }, [user?.uid]);
 
-  // Xử lý khôi phục nhật ký (Restore)
   const handleRestore = async (diary: TrashedDiary) => {
-    const confirmed = window.confirm("Restore this diary?");
-    if (!confirmed) return;
-
     setRestoring(diary.id);
     try {
       const path =
@@ -147,23 +142,18 @@ export default function TrashBin() {
         trashedAt: null,
       });
 
-      toast.success("Diary restored!");
+      toast.success(t("trashBin.restoreSuccess"));
       setTrashedDiaries((prev) => prev.filter((d) => d.id !== diary.id));
     } catch (err: any) {
-      console.error("❌ Restore error:", err);
-      toast.error("Failed to restore diary. Please try again.");
+      console.error("Restore error:", err);
+      toast.error(t("trashBin.restoreError"));
     } finally {
       setRestoring(null);
+      setActionState(null);
     }
   };
 
-  // Xử lý xóa vĩnh viễn (Permanent Delete)
   const handlePermanentDelete = async (diary: TrashedDiary) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete this diary? This action cannot be undone."
-    );
-    if (!confirmed) return;
-
     setDeleting(diary.id);
     try {
       const path =
@@ -175,34 +165,31 @@ export default function TrashBin() {
 
       await remove(ref(db, path));
 
-      toast.success("Diary deleted permanently!");
+      toast.success(t("trashBin.deleteSuccess"));
       setTrashedDiaries((prev) => prev.filter((d) => d.id !== diary.id));
     } catch (err: any) {
-      console.error("❌ Delete error:", err);
-      toast.error("Failed to delete diary. Please try again.");
+      console.error("Delete error:", err);
+      toast.error(t("trashBin.deleteError"));
     } finally {
       setDeleting(null);
+      setActionState(null);
     }
   };
 
-  // Tính ngày còn lại (30 ngày)
   const getDaysLeft = (trashedAt: number): number => {
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
     const daysLeftMs = thirtyDaysMs - (Date.now() - trashedAt);
     return Math.max(0, Math.ceil(daysLeftMs / (24 * 60 * 60 * 1000)));
   };
 
-  // Sắp xếp theo ngày xóa (mới nhất trước)
-  const sortedTrashedDiaries = [...trashedDiaries].sort(
-    (a, b) => b.trashedAt - a.trashedAt
-  );
+  const sortedTrashedDiaries = [...trashedDiaries].sort((a, b) => b.trashedAt - a.trashedAt);
 
   if (loading) {
     return (
       <div className="glass-card p-8 animate-fade-in">
         <div className="flex items-center gap-2 mb-4">
           <Trash2 className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">{t('dashboard.tab.trash')}</h3>
+          <h3 className="font-semibold text-foreground">{t("dashboard.tab.trash")}</h3>
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -218,13 +205,11 @@ export default function TrashBin() {
       <div className="glass-card p-8 animate-fade-in text-center">
         <div className="flex items-center gap-2 mb-4">
           <Trash2 className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">{t('dashboard.tab.trash')}</h3>
+          <h3 className="font-semibold text-foreground">{t("dashboard.tab.trash")}</h3>
         </div>
         <Trash2 className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-        <p className="text-muted-foreground font-medium">{t('trashBin.empty')}</p>
-        <p className="text-sm text-muted-foreground/70 mt-2">
-          {t('trashBin.warning')}
-        </p>
+        <p className="text-muted-foreground font-medium">{t("trashBin.empty")}</p>
+        <p className="text-sm text-muted-foreground/70 mt-2">{t("trashBin.warning")}</p>
       </div>
     );
   }
@@ -233,16 +218,12 @@ export default function TrashBin() {
     <div className="glass-card p-6 animate-fade-in">
       <div className="flex items-center gap-2 mb-4">
         <Trash2 className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold text-foreground">{t('dashboard.tab.trash')}</h3>
-        <span className="ml-2 text-xs text-muted-foreground">
-          ({sortedTrashedDiaries.length})
-        </span>
+        <h3 className="font-semibold text-foreground">{t("dashboard.tab.trash")}</h3>
+        <span className="ml-2 text-xs text-muted-foreground">({sortedTrashedDiaries.length})</span>
       </div>
 
-      <div className="mb-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-        <p className="text-xs text-destructive">
-          ⚠️ {t('trashBin.warning')}
-        </p>
+      <div className="mb-4 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+        <p className="text-sm text-destructive">{t("trashBin.warning")}</p>
       </div>
 
       <div className="space-y-3">
@@ -250,15 +231,15 @@ export default function TrashBin() {
           const daysLeft = getDaysLeft(diary.trashedAt);
           const typeLabel =
             diary.type === "personal"
-              ? "Personal Diary"
+              ? t("trashBin.type.personal")
               : diary.type === "received"
-                ? `From ${diary.fromName}`
-                : `Sent to ${diary.toName}`;
+                ? t("trashBin.type.received", { name: diary.fromName })
+                : t("trashBin.type.sent", { name: diary.toName });
 
           return (
             <div
               key={`${diary.type}-${diary.id}`}
-              className="border border-border rounded-xl p-4 bg-secondary/10 hover:bg-secondary/20 transition-colors opacity-80"
+              className="border border-border rounded-xl p-4 bg-secondary/10 hover:bg-secondary/20 transition-colors opacity-90"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -272,12 +253,12 @@ export default function TrashBin() {
                       </span>
                     )}
                     <span className="text-xs text-destructive font-medium ml-auto">
-                      ⏱️ {t('trashBin.daysLeft', { count: daysLeft })}
+                      {t("trashBin.daysLeft", { count: daysLeft })}
                     </span>
                   </div>
 
                   <h4 className="font-semibold text-foreground truncate mb-1">
-                    {diary.title || "(No title)"}
+                    {diary.title || t("trashBin.untitled")}
                   </h4>
 
                   <div className="text-xs text-muted-foreground">
@@ -293,22 +274,22 @@ export default function TrashBin() {
 
                 <div className="flex gap-2 shrink-0">
                   <button
-                    onClick={() => handleRestore(diary)}
+                    onClick={() => setActionState({ diary, action: "restore" })}
                     disabled={restoring === diary.id}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg border border-primary text-primary text-xs font-medium hover:bg-primary/10 transition-all disabled:opacity-50"
-                    title={t('trashBin.restore')}
+                    title={t("trashBin.restore")}
                   >
                     <RotateCcw className="w-3 h-3" />
-                    {restoring === diary.id ? "..." : t('trashBin.restore')}
+                    {restoring === diary.id ? "..." : t("trashBin.restore")}
                   </button>
                   <button
-                    onClick={() => handlePermanentDelete(diary)}
+                    onClick={() => setActionState({ diary, action: "delete" })}
                     disabled={deleting === diary.id}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 transition-all disabled:opacity-50"
-                    title={t('trashBin.deleteForever')}
+                    title={t("trashBin.deleteForever")}
                   >
                     <Trash2 className="w-3 h-3" />
-                    {deleting === diary.id ? "..." : t('trashBin.deleteForever')}
+                    {deleting === diary.id ? "..." : t("trashBin.deleteForever")}
                   </button>
                 </div>
               </div>
@@ -316,6 +297,38 @@ export default function TrashBin() {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={!!actionState}
+        onOpenChange={(open) => {
+          if (!open) setActionState(null);
+        }}
+        title={
+          actionState?.action === "restore"
+            ? t("trashBin.restoreConfirmTitle")
+            : t("trashBin.deleteConfirmTitle")
+        }
+        description={
+          actionState?.action === "restore"
+            ? t("trashBin.restoreConfirmDescription")
+            : t("trashBin.deleteConfirmDescription")
+        }
+        confirmLabel={
+          actionState?.action === "restore"
+            ? t("trashBin.restore")
+            : t("trashBin.deleteForever")
+        }
+        cancelLabel={t("settings.cancel")}
+        destructive={actionState?.action === "delete"}
+        onConfirm={() => {
+          if (!actionState) return;
+          if (actionState.action === "restore") {
+            void handleRestore(actionState.diary);
+          } else {
+            void handlePermanentDelete(actionState.diary);
+          }
+        }}
+      />
     </div>
   );
 }

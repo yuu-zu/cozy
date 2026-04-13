@@ -7,6 +7,7 @@ import { Friend } from "@/types/diary";
 import { Search, UserPlus, Users, Key, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPublicKey } from "@/lib/utils";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Props {
   entries?: unknown[];
@@ -30,6 +31,7 @@ export default function FriendsPanel(_: Props) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [friendToRemove, setFriendToRemove] = useState<Friend | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -145,22 +147,12 @@ export default function FriendsPanel(_: Props) {
   const handleRemoveContact = async (friend: Friend) => {
     if (!user) return;
 
-    // Hiển thị xác nhận
-    const confirmed = window.confirm(
-      t("friends.remove_confirm", { name: friend.displayName })
-    );
-
-    if (!confirmed) return;
-
     setRemovingUid(friend.uid);
     setError("");
     setSuccess("");
 
     try {
-      // Xóa 1 chiều: xóa bạn bè khỏi danh bạ của mình
       await remove(ref(db, `contacts/${user.uid}/${friend.uid}`));
-
-      // Xóa 2 chiều: xóa mình khỏi danh bạ của người đó
       await remove(ref(db, `contacts/${friend.uid}/${user.uid}`));
 
       setSuccess(t("friends.removed", { name: friend.displayName }));
@@ -171,13 +163,14 @@ export default function FriendsPanel(_: Props) {
       toast.error(t("friends.error_remove"));
     } finally {
       setRemovingUid(null);
+      setFriendToRemove(null);
     }
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="glass-card p-4">
-        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+    <div className="space-y-5 animate-fade-in">
+      <div className="glass-card p-5">
+        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Search className="w-5 h-5 text-primary" /> {t("friends.search_label")}
         </h3>
 
@@ -187,12 +180,12 @@ export default function FriendsPanel(_: Props) {
             placeholder={t("friends.search_placeholder")}
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
-            className="flex-1 px-4 py-2 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
+            className="flex-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
           />
           <button
             onClick={handleSearch}
             disabled={searching}
-            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+            className="px-4 py-3 rounded-xl bg-primary text-primary-foreground text-base font-medium disabled:opacity-50"
           >
             {searching ? t("friends.searching") : t("friends.search_button")}
           </button>
@@ -208,7 +201,7 @@ export default function FriendsPanel(_: Props) {
             <button
               onClick={handleSendFriendRequest}
               disabled={sendingInvite}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-base font-medium disabled:opacity-50"
             >
               <UserPlus className="w-4 h-4" />
               {sendingInvite ? t("friends.sending_invite") : t("friends.send_invite_button")}
@@ -217,8 +210,8 @@ export default function FriendsPanel(_: Props) {
         )}
       </div>
 
-      <div className="glass-card p-4">
-        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+      <div className="glass-card p-5">
+        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Users className="w-5 h-5 text-primary" /> {t("friends.connected_friends")} ({friends.length})
         </h3>
 
@@ -241,7 +234,10 @@ export default function FriendsPanel(_: Props) {
                     <td className="py-3">
                       <div className="flex items-start gap-2">
                         <Key className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                        <code className="font-mono text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg break-all max-w-xs overflow-x-auto" title={friend.publicKey}>
+                        <code
+                          className="font-mono text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg break-all max-w-xs overflow-x-auto"
+                          title={friend.publicKey}
+                        >
                           {formatPublicKey(friend.publicKey)}
                         </code>
                       </div>
@@ -250,15 +246,15 @@ export default function FriendsPanel(_: Props) {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleCopyPublicKey(friend.publicKey)}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80"
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80"
                         >
                           <Copy className="w-3.5 h-3.5" />
                           {t("friends.copy_button")}
                         </button>
                         <button
-                          onClick={() => handleRemoveContact(friend)}
+                          onClick={() => setFriendToRemove(friend)}
                           disabled={removingUid === friend.uid}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 disabled:opacity-50"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           {removingUid === friend.uid ? t("friends.removing") : t("friends.remove_button")}
@@ -272,6 +268,23 @@ export default function FriendsPanel(_: Props) {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!friendToRemove}
+        onOpenChange={(open) => {
+          if (!open) setFriendToRemove(null);
+        }}
+        title={friendToRemove ? t("friends.remove_confirm", { name: friendToRemove.displayName }) : ""}
+        description={t("friends.remove_confirm_detail")}
+        confirmLabel={t("friends.remove_button")}
+        cancelLabel={t("settings.cancel")}
+        destructive
+        onConfirm={() => {
+          if (friendToRemove) {
+            void handleRemoveContact(friendToRemove);
+          }
+        }}
+      />
     </div>
   );
 }
