@@ -204,7 +204,7 @@ export default function LandingPage() {
               {t('landing.footer.appDescription')}
             </p>
             <a
-              href="https://github.com/vovanthu25122000-max/cozy-crypt-journal"
+              href="https://github.com/lynatran1605/cozy-diary"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
