@@ -45,3 +45,15 @@ coverage/
 
 # Bun
 .bun
+
+# Firebase
+.firebase/
+.firebaserc
+
+# secrets/credentials
+secrets/
+*.key
+*.pem
+
+# macOS
+.DS_Store
