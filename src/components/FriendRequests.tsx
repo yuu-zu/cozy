@@ -189,14 +189,14 @@ export default function FriendRequests({ highlightedRequestUid }: Props) {
           {friendRequests.map((request) => (
             <div
               key={request.senderUid}
-              className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+              className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-xl border transition-colors ${
                 highlightedRequestUid === request.senderUid
                   ? "border-primary bg-primary/10 shadow-sm"
                   : "border-border bg-secondary/30 hover:bg-secondary/50"
               }`}
               data-request-id={request.senderUid}
             >
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground">{request.fromName}</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {t("friendRequests.sent_date", {
@@ -205,11 +205,11 @@ export default function FriendRequests({ highlightedRequestUid }: Props) {
                 </p>
               </div>
 
-              <div className="flex gap-2 ml-4">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-4">
                 <button
                   onClick={() => handleAcceptRequest(request)}
                   disabled={acceptingUid === request.senderUid || rejectingUid === request.senderUid}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors w-full sm:w-auto"
                   title={t("friendRequests.accept_button")}
                 >
                   <Check className="w-4 h-4" />
@@ -221,7 +221,7 @@ export default function FriendRequests({ highlightedRequestUid }: Props) {
                 <button
                   onClick={() => handleRejectRequest(request)}
                   disabled={rejectingUid === request.senderUid || acceptingUid === request.senderUid}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-destructive/20 text-destructive text-sm font-medium hover:bg-destructive/30 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-destructive/20 text-destructive text-sm font-medium hover:bg-destructive/30 disabled:opacity-50 transition-colors w-full sm:w-auto"
                   title={t("friendRequests.reject_button")}
                 >
                   <X className="w-4 h-4" />

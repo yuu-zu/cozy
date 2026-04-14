@@ -284,10 +284,10 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
   }
 
   return (
-    <div className="glass-card p-8 animate-fade-in">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="glass-card p-4 sm:p-8 animate-fade-in max-w-full overflow-hidden">
+      <div className="flex items-center gap-3 mb-6 max-w-full">
         <BookOpen className="w-6 h-6 text-primary" />
-        <h3 className="font-semibold text-foreground text-xl">{t("myDiaries.title")}</h3>
+        <h3 className="font-semibold text-foreground text-xl break-words">{t("myDiaries.title")}</h3>
       </div>
 
       <Tabs value={activeMailboxTab} onValueChange={(value) => setActiveMailboxTab(value as "inbox" | "outbox")} className="w-full">
@@ -302,7 +302,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="inbox" className="mt-6">
+        <TabsContent value="inbox" className="mt-6 max-w-full">
           {receivedDiaries.length === 0 ? (
             <div className="text-center py-10">
               <Inbox className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
@@ -312,7 +312,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-full">
               {receivedDiaries.map((diary) => {
                 const dec = decrypted[diary.id];
                 const status = getDiaryStatus(diary);
@@ -339,20 +339,20 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                   <div
                     key={diary.id}
                     data-diary-id={diary.id}
-                    className={`border rounded-xl p-6 transition-colors ${
+                    className={`border rounded-xl p-4 sm:p-6 transition-colors max-w-full overflow-hidden ${
                       highlightedDiaryId === diary.id ? "ring-2 ring-primary/40" : ""
                     } ${containerClass}`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
-                          <span className="text-base font-medium text-foreground">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4 max-w-full">
+                      <div className="flex-1 min-w-0 max-w-full">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap max-w-full">
+                          <span className="text-base font-medium text-foreground break-words">
                             {t("myDiaries.from")}: {diary.fromName}
                           </span>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
                             {badgeLabel}
                           </span>
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-muted-foreground break-words">
                             {new Date(diary.createdAt).toLocaleDateString("vi-VN", {
                               day: "2-digit",
                               month: "2-digit",
@@ -364,8 +364,8 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                         </div>
 
                         {dec ? (
-                          <div className="animate-fade-in">
-                            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <div className="animate-fade-in max-w-full">
+                            <div className="flex items-center gap-2 mb-3 flex-wrap max-w-full">
                               <Unlock className="w-5 h-5 text-mood-calm" />
                               <span className="text-sm text-mood-calm font-medium">
                                 {t("myDiaries.decrypted")}
@@ -376,7 +376,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                                 </span>
                               )}
                             </div>
-                            <h4 className="font-display font-semibold text-foreground text-lg mb-3">
+                            <h4 className="font-display font-semibold text-foreground text-lg mb-3 break-words">
                               {dec.title}
                             </h4>
                             <div
@@ -401,12 +401,12 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0 mt-3 sm:mt-0 flex-wrap justify-end">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto sm:shrink-0 mt-1 sm:mt-0 flex-wrap sm:justify-end">
                         {!dec && (
                           <button
                             onClick={() => handleDecrypt(diary)}
                             disabled={decrypting === diary.id}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium border border-primary/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium border border-primary/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none w-full sm:w-auto break-words"
                             title={t("myDiaries.decryptTitle")}
                           >
                             <Unlock className="w-4 h-4" />
@@ -418,7 +418,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                           <button
                             onClick={() => handleMarkAsRead(diary.id)}
                             disabled={markingRead === diary.id}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium border border-amber-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium border border-amber-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 disabled:opacity-50 w-full sm:w-auto break-words"
                             title={t("myDiaries.markReadTitle")}
                           >
                             <Eye className="w-4 h-4" />
@@ -429,7 +429,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                         {dec && (
                           <button
                             onClick={() => handleReply(diary)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-medium border border-blue-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200"
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-medium border border-blue-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 w-full sm:w-auto break-words"
                             title={t("myDiaries.replyTitle")}
                           >
                             <Reply className="w-4 h-4" />
@@ -439,7 +439,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
 
                         <button
                           onClick={() => setTrashTarget({ diary, isReceived: true })}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500 text-red-500 text-sm font-medium hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 active:translate-y-0 active:shadow-sm transition-all duration-200 dark:hover:bg-red-950/30"
+                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-500 text-red-500 text-sm font-medium hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 active:translate-y-0 active:shadow-sm transition-all duration-200 dark:hover:bg-red-950/30 w-full sm:w-auto break-words"
                           title={t("myDiaries.trashTitle")}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -454,7 +454,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
           )}
         </TabsContent>
 
-        <TabsContent value="outbox" className="mt-6">
+        <TabsContent value="outbox" className="mt-6 max-w-full">
           {sentDiaries.length === 0 ? (
             <div className="text-center py-10">
               <Send className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
@@ -464,19 +464,19 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-full">
               {sentDiaries.map((diary) => (
                 <div
                   key={diary.id}
-                  className="border border-border rounded-xl p-6 bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                  className="border border-border rounded-xl p-4 sm:p-6 bg-secondary/20 hover:bg-secondary/30 transition-colors max-w-full overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <span className="text-base font-medium text-foreground">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4 max-w-full">
+                    <div className="flex-1 min-w-0 max-w-full">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap max-w-full">
+                        <span className="text-base font-medium text-foreground break-words">
                           {t("myDiaries.sentTo")}: {diary.toName}
                         </span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-muted-foreground break-words">
                           {new Date(diary.createdAt).toLocaleDateString("vi-VN", {
                             day: "2-digit",
                             month: "2-digit",
@@ -488,13 +488,13 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                       </div>
 
                       {diary.sourceTitle && (
-                        <p className="text-sm font-medium text-foreground mb-3">
+                        <p className="text-sm font-medium text-foreground mb-3 break-words">
                           {t("myDiaries.sharedEntry")}: {diary.sourceTitle}
                         </p>
                       )}
 
                       <div>
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap max-w-full">
                           <Lock className="w-5 h-5 text-accent" />
                           <span className="text-sm text-accent font-medium">
                             {t("myDiaries.rsaEncrypted")}
@@ -514,7 +514,7 @@ export default function MyDiaries({ highlightedDiaryId }: Props) {
                     </div>
                     <button
                       onClick={() => setTrashTarget({ diary, isReceived: false })}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500 text-red-500 text-sm font-medium hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 active:translate-y-0 active:shadow-sm transition-all duration-200 shrink-0 dark:hover:bg-red-950/30"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-500 text-red-500 text-sm font-medium hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 active:translate-y-0 active:shadow-sm transition-all duration-200 w-full sm:w-auto sm:shrink-0 break-words dark:hover:bg-red-950/30"
                       title={t("myDiaries.trashTitle")}
                     >
                       <Trash2 className="w-4 h-4" />

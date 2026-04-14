@@ -229,7 +229,7 @@ export default function LandingPage() {
               {t('landing.footer.appDescription')}
             </p>
             <a
-              href="https://github.com/lynatran1605/cozy-diary"
+              href="https://github.com/yuu-zu/cozy"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"

@@ -241,7 +241,7 @@ export default function TrashBin() {
               key={`${diary.type}-${diary.id}`}
               className="border border-border rounded-xl p-4 bg-secondary/10 hover:bg-secondary/20 transition-colors opacity-90"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-xs font-medium text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
@@ -272,11 +272,11 @@ export default function TrashBin() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:shrink-0">
                   <button
                     onClick={() => setActionState({ diary, action: "restore" })}
                     disabled={restoring === diary.id}
-                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-primary text-primary text-xs font-medium hover:bg-primary/10 transition-all disabled:opacity-50"
+                    className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-primary text-primary text-xs font-medium hover:bg-primary/10 transition-all disabled:opacity-50 w-full sm:w-auto"
                     title={t("trashBin.restore")}
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -285,7 +285,7 @@ export default function TrashBin() {
                   <button
                     onClick={() => setActionState({ diary, action: "delete" })}
                     disabled={deleting === diary.id}
-                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 transition-all disabled:opacity-50"
+                    className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 transition-all disabled:opacity-50 w-full sm:w-auto"
                     title={t("trashBin.deleteForever")}
                   >
                     <Trash2 className="w-3 h-3" />

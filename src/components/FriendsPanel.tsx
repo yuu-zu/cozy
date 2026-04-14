@@ -304,7 +304,7 @@ export default function FriendsPanel(_: Props) {
           <Search className="w-5 h-5 text-primary" /> {t("friends.search_label")}
         </h3>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="email"
             placeholder={t("friends.search_placeholder")}
@@ -315,7 +315,7 @@ export default function FriendsPanel(_: Props) {
           <button
             onClick={handleSearch}
             disabled={searching}
-            className="px-4 py-3 rounded-xl bg-primary text-primary-foreground text-base font-medium disabled:opacity-50"
+            className="px-4 py-3 rounded-xl bg-primary text-primary-foreground text-base font-medium disabled:opacity-50 w-full sm:w-auto"
           >
             {searching ? t("friends.searching") : t("friends.search_button")}
           </button>
@@ -331,7 +331,7 @@ export default function FriendsPanel(_: Props) {
             <button
               onClick={handleSendFriendRequest}
               disabled={inviteDisabled}
-              className={`mt-3 inline-flex items-center gap-2 px-4 py-3 rounded-xl text-base font-medium disabled:cursor-not-allowed ${
+              className={`mt-3 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-base font-medium disabled:cursor-not-allowed w-full sm:w-auto ${
                 relationshipState === "none"
                   ? "bg-primary text-primary-foreground disabled:opacity-50"
                   : "bg-secondary text-muted-foreground disabled:opacity-100"
@@ -377,10 +377,10 @@ export default function FriendsPanel(_: Props) {
                       </div>
                     </td>
                     <td className="py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
                         <button
                           onClick={() => handleCopyPublicKey(friend.publicKey)}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 w-full sm:w-auto"
                         >
                           <Copy className="w-3.5 h-3.5" />
                           {t("friends.copy_button")}
@@ -388,7 +388,7 @@ export default function FriendsPanel(_: Props) {
                         <button
                           onClick={() => setFriendToRemove(friend)}
                           disabled={removingUid === friend.uid}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 disabled:opacity-50 w-full sm:w-auto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           {removingUid === friend.uid ? t("friends.removing") : t("friends.remove_button")}
