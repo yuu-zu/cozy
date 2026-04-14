@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Arial", "Helvetica", "sans-serif"],
-        display: ["Arial", "Helvetica", "sans-serif"],
+        sans: ["Inter", "Arial", "Helvetica", "sans-serif"],
+        display: ["Inter", "Arial", "Helvetica", "sans-serif"],
         mono: ["'Courier New'", "Courier", "monospace"],
       },
       colors: {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
+  ActionCodeSettings,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -9,6 +10,8 @@ import {
   User,
   updateProfile,
   fetchSignInMethodsForEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from "firebase/auth";
 import { ref, set, get, update } from "firebase/database";
 import { auth, db } from "@/lib/firebase";
@@ -17,6 +20,7 @@ import { generateKeyPair, savePrivateKeyToLocalStorage } from "@/lib/crypto";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  suppressAuthRedirect: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   verifyExistingAccountEmail: (email: string, password: string) => Promise<void>;
@@ -24,17 +28,24 @@ interface AuthContextType {
   checkDisplayNameExists: (displayName: string) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  changePassword: (newPassword: string) => Promise<void>;
-  updateUserProfile: (data: { displayName?: string; photoURL?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateUserProfile: (data: { displayName?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const INACTIVITY_TIMEOUT = 180_000;
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [suppressAuthRedirect, setSuppressAuthRedirect] = useState(false);
+
+  const getPasswordResetActionCodeSettings = useCallback((): ActionCodeSettings => {
+    return {
+      url: `${window.location.origin}/reset-password`,
+      handleCodeInApp: true,
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -83,32 +94,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (email: string, password: string, displayName: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(cred.user, { displayName });
+    setSuppressAuthRedirect(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName });
 
-    const { publicKey, privateKey } = await generateKeyPair();
-    savePrivateKeyToLocalStorage(cred.user.uid, privateKey);
+      const { publicKey, privateKey } = await generateKeyPair();
+      savePrivateKeyToLocalStorage(cred.user.uid, privateKey);
 
-    await set(ref(db, `users/${cred.user.uid}`), {
-      displayName,
-      email,
-      emailVerified: true,
-      emailVerifiedAt: Date.now(),
-      publicKey,
-      photoURL: "",
-      createdAt: Date.now(),
-    });
+      await set(ref(db, `users/${cred.user.uid}`), {
+        displayName,
+        email,
+        emailVerified: true,
+        emailVerifiedAt: Date.now(),
+        publicKey,
+        createdAt: Date.now(),
+      });
 
-    await signOut(auth);
+      await signOut(auth);
+      setUser(null);
+    } finally {
+      setSuppressAuthRedirect(false);
+    }
   }, []);
 
   const verifyExistingAccountEmail = useCallback(async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    await update(ref(db, `users/${cred.user.uid}`), {
-      emailVerified: true,
-      emailVerifiedAt: Date.now(),
-    });
-    await signOut(auth);
+    setSuppressAuthRedirect(true);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await update(ref(db, `users/${cred.user.uid}`), {
+        emailVerified: true,
+        emailVerifiedAt: Date.now(),
+      });
+      await signOut(auth);
+      setUser(null);
+    } finally {
+      setSuppressAuthRedirect(false);
+    }
   }, []);
 
   const checkEmailExists = useCallback(async (email: string) => {
@@ -128,7 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const users = snapshot.val();
       const normalizedInputName = displayName.trim().toLowerCase();
 
-      // Kiểm tra xem displayName đã tồn tại chưa (so sánh không phân biệt hoa/thường)
       for (const userData of Object.values(users)) {
         const user = userData as { displayName?: string };
         if (user.displayName && user.displayName.toLowerCase() === normalizedInputName) {
@@ -148,21 +169,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
-  }, []);
+    const normalizedEmail = email.trim().toLowerCase();
+    const locale = localStorage.getItem("i18nextLng") === "en" ? "en" : "vi";
+    auth.languageCode = locale;
+    await sendPasswordResetEmail(auth, normalizedEmail, getPasswordResetActionCodeSettings());
+  }, [getPasswordResetActionCodeSettings]);
 
-  const changePassword = useCallback(async (newPassword: string) => {
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     if (!auth.currentUser) throw new Error("Chua dang nhap");
+    if (!auth.currentUser.email) throw new Error("Khong tim thay email tai khoan");
+
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+    await reauthenticateWithCredential(auth.currentUser, credential);
     await updatePassword(auth.currentUser, newPassword);
   }, []);
 
-  const updateUserProfile = useCallback(async (data: { displayName?: string; photoURL?: string }) => {
+  const updateUserProfile = useCallback(async (data: { displayName?: string }) => {
     if (!auth.currentUser) throw new Error("Chua dang nhap");
     await updateProfile(auth.currentUser, data);
 
     const updates: Record<string, string> = {};
     if (data.displayName) updates.displayName = data.displayName;
-    if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
     await update(ref(db, `users/${auth.currentUser.uid}`), updates);
   }, []);
 
@@ -171,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        suppressAuthRedirect,
         login,
         register,
         verifyExistingAccountEmail,

@@ -1,83 +1,58 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ref, onValue, push, set, get } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Friend, Mood, MOOD_CONFIG } from "@/types/diary";
+import { DiaryEntry, Friend } from "@/types/diary";
 import { encryptMessage } from "@/lib/crypto";
-import { Send, AlertCircle } from "lucide-react";
+import { Send, AlertCircle, BookOpen, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-import Quill from 'quill';
+import { createNotification } from "@/lib/notifications";
 
-/* ==================================================
-   CẤU HÌNH TÙY CHỈNH CHO EDITOR (FONT, SIZE, COLOR)
-   ================================================== */
+interface ShareTargetPayload {
+  uid?: string;
+  entryId?: string;
+}
 
-// 1. Cấu hình Font chữ
-const Font = Quill.import('formats/font');
-const customFonts = ['sans-serif', 'serif', 'monospace', 'times-new-roman', 'roboto', 'dancing-script', 'pacifico'];
-Font.whitelist = customFonts;
-Quill.register(Font, true);
+interface Props {
+  entries: DiaryEntry[];
+}
 
-// 2. Cấu hình Cỡ chữ (Dùng pixel thay vì small/large)
-const Size = Quill.import('attributors/style/size');
-const customSizes = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '32px'];
-Size.whitelist = customSizes;
-Quill.register(Size, true);
+type ContactRecord = {
+  displayName?: string;
+  publicKey?: string;
+};
 
-// 3. Bảng 8 màu chuẩn Tailwind
-const customColors = [
-  '#000000', // Đen
-  '#FFFFFF', // Trắng
-  '#EF4444', // Đỏ
-  '#22C55E', // Xanh lá
-  '#3B82F6', // Xanh dương
-  '#EAB308', // Vàng
-  '#A855F7', // Tím
-  '#EC4899'  // Hồng
-];
+type UserRecord = {
+  displayName?: string;
+};
 
-export default function SendDiary() {
-  const { t } = useTranslation();
+export default function SendDiary({ entries }: Props) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [selectedFriendUid, setSelectedFriendUid] = useState<string>("");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [mood, setMood] = useState<Mood>("calm");
+  const [selectedEntryId, setSelectedEntryId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  // Áp dụng cấu hình vào Toolbar
-  const quillModules = {
-    toolbar: [
-      [{ 'font': customFonts }, { 'size': customSizes }],              // Font và Size
-      ['bold', 'italic', 'underline', 'strike'],                       // Định dạng chữ
-      [{ 'color': customColors }, { 'background': customColors }],     // Bảng 8 màu
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'align': [] }],   // Căn lề, danh sách
-      ['clean']                                                        // Xóa định dạng
-    ],
-  };
-
   useEffect(() => {
-    const handleReceiveReplySignal = () => {
-      const targetData = localStorage.getItem("cozy_reply_target");
-      if (targetData) {
-        const { uid, name } = JSON.parse(targetData);
-        setSelectedFriendUid(uid);
-        setTitle(`Re: Nhật ký từ ${name}`);
-        localStorage.removeItem("cozy_reply_target");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    const handlePrefillCompose = () => {
+      const targetData = localStorage.getItem("cozy_share_target");
+      if (!targetData) return;
+
+      const payload = JSON.parse(targetData) as ShareTargetPayload;
+      if (payload.uid) setSelectedFriendUid(payload.uid);
+      if (payload.entryId) setSelectedEntryId(payload.entryId);
+      localStorage.removeItem("cozy_share_target");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    window.addEventListener("trigger_compose_diary", handleReceiveReplySignal);
-    handleReceiveReplySignal();
+    window.addEventListener("trigger_compose_diary", handlePrefillCompose);
+    handlePrefillCompose();
 
-    return () => window.removeEventListener("trigger_compose_diary", handleReceiveReplySignal);
-  }, [friends]);
+    return () => window.removeEventListener("trigger_compose_diary", handlePrefillCompose);
+  }, []);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -90,28 +65,49 @@ export default function SendDiary() {
         setLoading(false);
         return;
       }
-      const nextFriends = Object.entries(data).map(([uid, value]: [string, any]) => ({
-        uid,
-        displayName: value.displayName || "Người dùng",
-        publicKey: value.publicKey,
-      }));
+
+      const nextFriends = Object.entries(data).map(([uid, value]) => {
+        const contact = value as ContactRecord;
+        return {
+          uid,
+          displayName: contact.displayName || t("dashboard.tab.myDiaries"),
+          publicKey: contact.publicKey || "",
+        };
+      });
+
       setFriends(nextFriends);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, t]);
+
+  const shareableEntries = useMemo(
+    () =>
+      [...entries]
+        .filter((entry) => !entry.isTrashed)
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [entries],
+  );
+
+  const selectedEntry = shareableEntries.find((entry) => entry.id === selectedEntryId);
 
   const handleSendDiary = async () => {
-    if (!user || !selectedFriendUid) return toast.error(t("sendDiary.noFriends"));
-    if (!title.trim()) return toast.error(t("sendDiary.titleLabel"));
-    
-    // Quill thường trả về '<p><br></p>' khi rỗng, ta cần check kĩ hơn
-    const plainText = content.replace(/<[^>]*>?/gm, '').trim();
-    if (!plainText) return toast.error(t("sendDiary.contentLabel"));
+    if (!user || !selectedFriendUid) {
+      toast.error(t("sendDiary.noFriends"));
+      return;
+    }
 
-    const selectedFriend = friends.find((f) => f.uid === selectedFriendUid);
-    if (!selectedFriend) return toast.error(t("sendDiary.noFriends"));
+    if (!selectedEntry) {
+      toast.error(t("sendDiary.selectDiary"));
+      return;
+    }
+
+    const selectedFriend = friends.find((friend) => friend.uid === selectedFriendUid);
+    if (!selectedFriend) {
+      toast.error(t("sendDiary.noFriends"));
+      return;
+    }
 
     setIsSending(true);
 
@@ -119,12 +115,13 @@ export default function SendDiary() {
       const senderSnapshot = await get(ref(db, `users/${user.uid}`));
       if (!senderSnapshot.exists()) throw new Error(t("sendDiary.noFriends"));
 
-      const senderData = senderSnapshot.val();
+      const senderData = senderSnapshot.val() as UserRecord;
       const senderName = senderData.displayName || user.displayName || t("dashboard.tab.myDiaries");
-
-      const encryptedTitle = await encryptMessage(title, selectedFriend.publicKey);
-      
-      const contentPayload = JSON.stringify({ content, mood });
+      const encryptedTitle = await encryptMessage(selectedEntry.title, selectedFriend.publicKey);
+      const contentPayload = JSON.stringify({
+        content: selectedEntry.content,
+        mood: selectedEntry.mood,
+      });
       const encryptedContent = await encryptMessage(contentPayload, selectedFriend.publicKey);
 
       const entryId = push(ref(db, "sharedDiaries")).key || `entry_${Date.now()}`;
@@ -136,6 +133,9 @@ export default function SendDiary() {
         encryptedContent,
         createdAt: Date.now(),
         isRead: false,
+        isDecrypted: false,
+        sourceEntryId: selectedEntry.id,
+        sourceTitle: selectedEntry.title,
       });
 
       await set(ref(db, `sentDiaries/${user.uid}/${entryId}`), {
@@ -143,19 +143,29 @@ export default function SendDiary() {
         toName: selectedFriend.displayName,
         encryptedTitle,
         encryptedContent,
-        mood,
+        mood: selectedEntry.mood,
         createdAt: Date.now(),
+        sourceEntryId: selectedEntry.id,
+        sourceTitle: selectedEntry.title,
       });
 
-      setTitle("");
-      setContent("");
-      setMood("calm");
-      setSelectedFriendUid("");
+      await createNotification({
+        userUid: selectedFriendUid,
+        type: "diary_shared",
+        title: t("notifications.diary_shared_title"),
+        message: t("notifications.diary_shared_message", {
+          name: senderName,
+        }),
+        targetId: entryId,
+      });
 
-      toast.success(`${t("sendDiary.send")} ${selectedFriend.displayName} ✓`);
-    } catch (err: any) {
+      toast.success(t("sendDiary.sent_toast", { name: selectedFriend.displayName }));
+      setSelectedFriendUid("");
+      setSelectedEntryId("");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("sendDiary.send");
       console.error("Send diary error:", err);
-      toast.error(err.message || t("sendDiary.send"));
+      toast.error(message || t("sendDiary.send"));
     } finally {
       setIsSending(false);
     }
@@ -166,24 +176,19 @@ export default function SendDiary() {
       <div className="glass-card p-6 animate-fade-in">
         <div className="flex items-center gap-2 mb-4">
           <Send className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Gửi Nhật Ký</h3>
+          <h3 className="font-semibold text-foreground">{t("sendDiary.title")}</h3>
         </div>
         <div className="space-y-3">
           <div className="h-10 bg-secondary/30 rounded-xl animate-pulse" />
-          <div className="h-32 bg-secondary/30 rounded-xl animate-pulse" />
+          <div className="h-24 bg-secondary/30 rounded-xl animate-pulse" />
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="glass-card p-8 animate-fade-in">
-      <div className="flex items-center gap-3 mb-6">
-        <Send className="w-6 h-6 text-primary" />
-        <h3 className="font-semibold text-foreground text-xl">{t("sendDiary.title")}</h3>
-      </div>
-
-      {friends.length === 0 ? (
+  if (friends.length === 0) {
+    return (
+      <div className="glass-card p-8 animate-fade-in">
         <div className="flex items-start gap-4 p-6 rounded-lg bg-destructive/10 border border-destructive/20">
           <AlertCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
           <div>
@@ -191,78 +196,109 @@ export default function SendDiary() {
             <p className="text-sm text-destructive/80 mt-2">{t("sendDiary.noFriendsDetail")}</p>
           </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          
+      </div>
+    );
+  }
+
+  if (shareableEntries.length === 0) {
+    return (
+      <div className="glass-card p-8 animate-fade-in">
+        <div className="flex items-start gap-4 p-6 rounded-lg bg-secondary/30 border border-border">
+          <BookOpen className="w-6 h-6 text-primary shrink-0 mt-0.5" />
           <div>
-            <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.sendToLabel")}</label>
-            <select
-              value={selectedFriendUid}
-              onChange={(e) => setSelectedFriendUid(e.target.value)}
-              disabled={isSending}
-              className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none disabled:opacity-50"
-            >
-              <option value="">-- {t("sendDiary.selectFriend")} --</option>
-              {friends.map((friend) => (
-                <option key={friend.uid} value={friend.uid}>{friend.displayName}</option>
-              ))}
-            </select>
+            <p className="font-medium text-foreground text-base">{t("sendDiary.noDiaries")}</p>
+            <p className="text-sm text-muted-foreground mt-2">{t("sendDiary.noDiariesDetail")}</p>
           </div>
-
-          <div>
-            <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.moodLabel")}</label>
-            <div className="flex gap-3 flex-wrap">
-              {(Object.keys(MOOD_CONFIG) as Mood[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMood(m)}
-                  disabled={isSending}
-                  className={`mood-chip transition-all ${mood === m ? MOOD_CONFIG[m].colorClass : "bg-secondary text-muted-foreground"} disabled:opacity-50`}
-                >
-                  {MOOD_CONFIG[m].emoji} {t(`mood.${m}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.titleLabel")}</label>
-            <input
-              type="text"
-              placeholder={t("sendDiary.titlePlaceholder")}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={isSending}
-              maxLength={200}
-              className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground placeholder:text-muted-foreground focus:border-primary outline-none disabled:opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.contentLabel")}</label>
-            <div className={`bg-secondary/50 rounded-xl overflow-hidden border border-border focus-within:border-primary transition-colors ${isSending ? 'opacity-50 pointer-events-none' : ''}`}>
-              <ReactQuill 
-                theme="snow" 
-                value={content} 
-                onChange={setContent} 
-                modules={quillModules}
-                placeholder={t("sendDiary.contentPlaceholder")}
-                className="custom-quill-editor"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleSendDiary}
-            disabled={isSending || !selectedFriendUid || !title.trim() || !content.replace(/<[^>]*>?/gm, '').trim()}
-            className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl bg-primary text-primary-foreground text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-5 h-5" />
-            {isSending ? t("sendDiary.sending") : t("sendDiary.send")}
-          </button>
-
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-card p-8 animate-fade-in">
+      <div className="flex items-center gap-3 mb-2">
+        <Send className="w-6 h-6 text-primary" />
+        <h3 className="font-semibold text-foreground text-xl">{t("sendDiary.title")}</h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-6">{t("sendDiary.helperText")}</p>
+
+      <div className="space-y-6">
+        <div>
+          <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.sendToLabel")}</label>
+          <select
+            value={selectedFriendUid}
+            onChange={(e) => setSelectedFriendUid(e.target.value)}
+            disabled={isSending}
+            className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base text-foreground focus:border-primary outline-none disabled:opacity-50"
+          >
+            <option value="">-- {t("sendDiary.selectFriend")} --</option>
+            {friends.map((friend) => (
+              <option key={friend.uid} value={friend.uid}>
+                {friend.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-base font-medium text-foreground mb-3">{t("sendDiary.diaryListLabel")}</label>
+          <div className="space-y-3 max-h-[24rem] overflow-y-auto pr-1">
+            {shareableEntries.map((entry) => {
+              const isSelected = entry.id === selectedEntryId;
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => setSelectedEntryId(entry.id)}
+                  disabled={isSending}
+                  className={`w-full text-left rounded-2xl border p-4 transition-colors disabled:opacity-50 ${
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border bg-secondary/20 hover:bg-secondary/35"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`truncate ${isSelected ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>
+                        {entry.title || t("trashBin.untitled")}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {new Date(entry.createdAt).toLocaleDateString(
+                          i18n.language === "vi" ? "vi-VN" : "en-US",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </p>
+                    </div>
+                    {isSelected && <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedEntry && (
+          <div className="rounded-2xl border border-border bg-secondary/20 p-4">
+            <p className="text-sm font-medium text-foreground">{t("sendDiary.selectedDiary")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{selectedEntry.title || t("trashBin.untitled")}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleSendDiary}
+          disabled={isSending || !selectedFriendUid || !selectedEntryId}
+          className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl bg-primary text-primary-foreground text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Send className="w-5 h-5" />
+          {isSending ? t("sendDiary.sending") : t("sendDiary.send")}
+        </button>
+      </div>
     </div>
   );
 }

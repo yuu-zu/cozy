@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { decryptMessage } from "@/lib/crypto";
 import { forceRichTextStyles } from "@/lib/utils";
 import { MOOD_CONFIG, Mood } from "@/types/diary";
-import { Lock, Unlock, BookOpen, Send, Inbox, Trash2, Reply } from "lucide-react";
+import { Lock, Unlock, BookOpen, Send, Inbox, Trash2, Reply, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -19,6 +19,7 @@ interface ReceivedDiary {
   encryptedContent: string;
   createdAt: number;
   isRead: boolean;
+  isDecrypted: boolean;
   isTrashed?: boolean;
   trashedAt?: number;
 }
@@ -31,6 +32,7 @@ interface SentDiary {
   encryptedContent: string;
   mood: Mood;
   createdAt: number;
+  sourceTitle?: string;
   isTrashed?: boolean;
   trashedAt?: number;
 }
@@ -46,15 +48,45 @@ interface TrashTarget {
   isReceived: boolean;
 }
 
-export default function MyDiaries() {
+type ReceivedDiaryStatus = "new" | "decrypted_unread" | "read";
+type SharedDiaryRecord = {
+  fromUid?: string;
+  fromName?: string;
+  encryptedTitle?: string;
+  encryptedContent?: string;
+  createdAt?: number;
+  isRead?: boolean;
+  isDecrypted?: boolean;
+  isTrashed?: boolean;
+  trashedAt?: number;
+};
+type SentDiaryRecord = {
+  toUid?: string;
+  toName?: string;
+  encryptedTitle?: string;
+  encryptedContent?: string;
+  mood?: Mood;
+  createdAt?: number;
+  sourceTitle?: string;
+  isTrashed?: boolean;
+  trashedAt?: number;
+};
+
+interface Props {
+  highlightedDiaryId?: string | null;
+}
+
+export default function MyDiaries({ highlightedDiaryId }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [receivedDiaries, setReceivedDiaries] = useState<ReceivedDiary[]>([]);
   const [sentDiaries, setSentDiaries] = useState<SentDiary[]>([]);
   const [decrypted, setDecrypted] = useState<Record<string, DecryptedDiary>>({});
   const [decrypting, setDecrypting] = useState<string | null>(null);
+  const [markingRead, setMarkingRead] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trashTarget, setTrashTarget] = useState<TrashTarget | null>(null);
+  const [activeMailboxTab, setActiveMailboxTab] = useState<"inbox" | "outbox">("inbox");
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -67,17 +99,21 @@ export default function MyDiaries() {
         setReceivedDiaries([]);
       } else {
         const diaries = Object.entries(data)
-          .map(([id, value]: [string, any]) => ({
-            id,
-            fromUid: value.fromUid || "",
-            fromName: value.fromName || "Người dùng",
-            encryptedTitle: value.encryptedTitle || "",
-            encryptedContent: value.encryptedContent || "",
-            createdAt: value.createdAt || Date.now(),
-            isRead: value.isRead || false,
-            isTrashed: value.isTrashed || false,
-            trashedAt: value.trashedAt,
-          }) as ReceivedDiary)
+          .map(([id, value]) => {
+            const diaryValue = value as SharedDiaryRecord;
+            return {
+              id,
+              fromUid: diaryValue.fromUid || "",
+              fromName: diaryValue.fromName || t("dashboard.tab.myDiaries"),
+              encryptedTitle: diaryValue.encryptedTitle || "",
+              encryptedContent: diaryValue.encryptedContent || "",
+              createdAt: diaryValue.createdAt || Date.now(),
+              isRead: Boolean(diaryValue.isRead),
+              isDecrypted: Boolean(diaryValue.isDecrypted),
+              isTrashed: Boolean(diaryValue.isTrashed),
+              trashedAt: diaryValue.trashedAt,
+            } as ReceivedDiary;
+          })
           .filter((diary) => !diary.isTrashed)
           .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -87,7 +123,19 @@ export default function MyDiaries() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, t]);
+
+  useEffect(() => {
+    if (!highlightedDiaryId) return;
+
+    setActiveMailboxTab("inbox");
+    const element = document.querySelector(`[data-diary-id="${highlightedDiaryId}"]`);
+    if (element instanceof HTMLElement) {
+      window.setTimeout(() => {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [highlightedDiaryId, receivedDiaries.length]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -100,17 +148,21 @@ export default function MyDiaries() {
         setSentDiaries([]);
       } else {
         const diaries = Object.entries(data)
-          .map(([id, value]: [string, any]) => ({
-            id,
-            toUid: value.toUid || "",
-            toName: value.toName || "Người dùng",
-            encryptedTitle: value.encryptedTitle || "",
-            encryptedContent: value.encryptedContent || "",
-            mood: value.mood || "calm",
-            createdAt: value.createdAt || Date.now(),
-            isTrashed: value.isTrashed || false,
-            trashedAt: value.trashedAt,
-          }) as SentDiary)
+          .map(([id, value]) => {
+            const diaryValue = value as SentDiaryRecord;
+            return {
+              id,
+              toUid: diaryValue.toUid || "",
+              toName: diaryValue.toName || t("dashboard.tab.myDiaries"),
+              encryptedTitle: diaryValue.encryptedTitle || "",
+              encryptedContent: diaryValue.encryptedContent || "",
+              mood: diaryValue.mood || "calm",
+              createdAt: diaryValue.createdAt || Date.now(),
+              sourceTitle: diaryValue.sourceTitle,
+              isTrashed: Boolean(diaryValue.isTrashed),
+              trashedAt: diaryValue.trashedAt,
+            } as SentDiary;
+          })
           .filter((diary) => !diary.isTrashed)
           .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -119,7 +171,13 @@ export default function MyDiaries() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, t]);
+
+  const getDiaryStatus = (diary: ReceivedDiary): ReceivedDiaryStatus => {
+    if (diary.isRead) return "read";
+    if (diary.isDecrypted) return "decrypted_unread";
+    return "new";
+  };
 
   const handleDecrypt = async (diary: ReceivedDiary) => {
     if (!user || decrypted[diary.id]) return;
@@ -132,7 +190,7 @@ export default function MyDiaries() {
 
       if (!privateKey) {
         throw new Error(
-          "Không tìm thấy khóa riêng tư trong local storage. Vui lòng đăng nhập lại để tạo khóa mới.",
+          "Khong tim thay khoa rieng tu trong local storage. Vui long dang nhap lai de tao khoa moi.",
         );
       }
 
@@ -145,14 +203,30 @@ export default function MyDiaries() {
         [diary.id]: { title, content, mood },
       }));
 
-      await update(ref(db, `sharedDiaries/${user.uid}/${diary.id}`), { isRead: true });
+      await update(ref(db, `sharedDiaries/${user.uid}/${diary.id}`), { isDecrypted: true });
 
       toast.success(t("myDiaries.decryptSuccess"));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("myDiaries.decryptError");
       console.error("Decrypt error:", err);
-      toast.error(err.message || t("myDiaries.decryptError"));
+      toast.error(message || t("myDiaries.decryptError"));
     } finally {
       setDecrypting(null);
+    }
+  };
+
+  const handleMarkAsRead = async (diaryId: string) => {
+    if (!user) return;
+    setMarkingRead(diaryId);
+
+    try {
+      await update(ref(db, `sharedDiaries/${user.uid}/${diaryId}`), { isRead: true });
+      toast.success(t("myDiaries.markReadSuccess"));
+    } catch (err) {
+      console.error("Mark read error:", err);
+      toast.error(t("myDiaries.markReadError"));
+    } finally {
+      setMarkingRead(null);
     }
   };
 
@@ -171,7 +245,7 @@ export default function MyDiaries() {
       });
 
       toast.success(t("myDiaries.moveToTrashSuccess"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Move to trash error:", err);
       toast.error(t("myDiaries.moveToTrashError"));
     } finally {
@@ -181,10 +255,9 @@ export default function MyDiaries() {
 
   const handleReply = (diary: ReceivedDiary) => {
     localStorage.setItem(
-      "cozy_reply_target",
+      "cozy_share_target",
       JSON.stringify({
         uid: diary.fromUid,
-        name: diary.fromName,
       }),
     );
 
@@ -217,7 +290,7 @@ export default function MyDiaries() {
         <h3 className="font-semibold text-foreground text-xl">{t("myDiaries.title")}</h3>
       </div>
 
-      <Tabs defaultValue="inbox" className="w-full">
+      <Tabs value={activeMailboxTab} onValueChange={(value) => setActiveMailboxTab(value as "inbox" | "outbox")} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="inbox" className="flex items-center gap-2 text-sm">
             <Inbox className="w-5 h-5" />
@@ -242,20 +315,43 @@ export default function MyDiaries() {
             <div className="space-y-6">
               {receivedDiaries.map((diary) => {
                 const dec = decrypted[diary.id];
+                const status = getDiaryStatus(diary);
+                const containerClass =
+                  status === "new"
+                    ? "border-primary/30 bg-primary/10"
+                    : status === "decrypted_unread"
+                      ? "border-amber-500/30 bg-amber-500/10"
+                      : "border-border bg-secondary/20 opacity-90";
+                const badgeClass =
+                  status === "new"
+                    ? "bg-primary text-primary-foreground"
+                    : status === "decrypted_unread"
+                      ? "bg-amber-500 text-white"
+                      : "bg-secondary text-muted-foreground";
+                const badgeLabel =
+                  status === "new"
+                    ? t("myDiaries.status_new")
+                    : status === "decrypted_unread"
+                      ? t("myDiaries.status_decrypted_unread")
+                      : t("myDiaries.status_read");
+
                 return (
                   <div
                     key={diary.id}
-                    className="border border-border rounded-xl p-6 bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                    data-diary-id={diary.id}
+                    className={`border rounded-xl p-6 transition-colors ${
+                      highlightedDiaryId === diary.id ? "ring-2 ring-primary/40" : ""
+                    } ${containerClass}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
                           <span className="text-base font-medium text-foreground">
                             {t("myDiaries.from")}: {diary.fromName}
                           </span>
-                          {!diary.isRead && !dec && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
-                          )}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
+                            {badgeLabel}
+                          </span>
                           <span className="text-sm text-muted-foreground">
                             {new Date(diary.createdAt).toLocaleDateString("vi-VN", {
                               day: "2-digit",
@@ -269,7 +365,7 @@ export default function MyDiaries() {
 
                         {dec ? (
                           <div className="animate-fade-in">
-                            <div className="flex items-center gap-2 mb-3">
+                            <div className="flex items-center gap-2 mb-3 flex-wrap">
                               <Unlock className="w-5 h-5 text-mood-calm" />
                               <span className="text-sm text-mood-calm font-medium">
                                 {t("myDiaries.decrypted")}
@@ -305,8 +401,8 @@ export default function MyDiaries() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0 mt-3 sm:mt-0">
-                        {!dec ? (
+                      <div className="flex items-center gap-3 shrink-0 mt-3 sm:mt-0 flex-wrap justify-end">
+                        {!dec && (
                           <button
                             onClick={() => handleDecrypt(diary)}
                             disabled={decrypting === diary.id}
@@ -316,7 +412,21 @@ export default function MyDiaries() {
                             <Unlock className="w-4 h-4" />
                             {decrypting === diary.id ? t("myDiaries.decrypting") : t("myDiaries.decrypt")}
                           </button>
-                        ) : (
+                        )}
+
+                        {dec && !diary.isRead && (
+                          <button
+                            onClick={() => handleMarkAsRead(diary.id)}
+                            disabled={markingRead === diary.id}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium border border-amber-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200 disabled:opacity-50"
+                            title={t("myDiaries.markReadTitle")}
+                          >
+                            <Eye className="w-4 h-4" />
+                            {markingRead === diary.id ? t("myDiaries.markingRead") : t("myDiaries.markRead")}
+                          </button>
+                        )}
+
+                        {dec && (
                           <button
                             onClick={() => handleReply(diary)}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-medium border border-blue-400/30 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm transition-all duration-200"
@@ -326,6 +436,7 @@ export default function MyDiaries() {
                             {t("myDiaries.reply")}
                           </button>
                         )}
+
                         <button
                           onClick={() => setTrashTarget({ diary, isReceived: true })}
                           className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500 text-red-500 text-sm font-medium hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 active:translate-y-0 active:shadow-sm transition-all duration-200 dark:hover:bg-red-950/30"
@@ -361,7 +472,7 @@ export default function MyDiaries() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
                         <span className="text-base font-medium text-foreground">
                           {t("myDiaries.sentTo")}: {diary.toName}
                         </span>
@@ -375,6 +486,12 @@ export default function MyDiaries() {
                           })}
                         </span>
                       </div>
+
+                      {diary.sourceTitle && (
+                        <p className="text-sm font-medium text-foreground mb-3">
+                          {t("myDiaries.sharedEntry")}: {diary.sourceTitle}
+                        </p>
+                      )}
 
                       <div>
                         <div className="flex items-center gap-2 mb-3">

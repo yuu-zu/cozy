@@ -3,6 +3,7 @@ import { ref, push, set, onValue, remove, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { DiaryEntry, Mood, MOOD_CONFIG, JOURNAL_PROMPTS } from "@/types/diary";
 import DiaryEditor from "@/components/DiaryEditor";
 import DiaryList from "@/components/DiaryList";
@@ -18,10 +19,12 @@ import MyDiaries from "@/components/MyDiaries";
 import { Plus, Search, Calendar, BarChart3, Users, Mail, BookOpen, Trash2 } from "lucide-react";
 
 type Tab = "list" | "calendar" | "stats" | "friends" | "shared" | "my-diaries" | "trash";
+type DiaryEntryRecord = Omit<DiaryEntry, "id">;
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [allEntries, setAllEntries] = useState<DiaryEntry[]>([]);
   const [tab, setTab] = useState<Tab>("list");
   const [showEditor, setShowEditor] = useState(false);
@@ -33,6 +36,23 @@ export default function Dashboard() {
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [showPrompt, setShowPrompt] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState("");
+  const requestFocusUid = searchParams.get("request");
+  const diaryFocusId = searchParams.get("diary");
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (
+      requestedTab === "list" ||
+      requestedTab === "calendar" ||
+      requestedTab === "stats" ||
+      requestedTab === "friends" ||
+      requestedTab === "shared" ||
+      requestedTab === "my-diaries" ||
+      requestedTab === "trash"
+    ) {
+      setTab(requestedTab);
+    }
+  }, [searchParams]);
 
   // Lắng nghe Custom Event để chuyển tab
   useEffect(() => {
@@ -57,9 +77,9 @@ export default function Dashboard() {
     const unsub = onValue(entriesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const list = Object.entries(data).map(([id, val]: [string, any]) => ({
+        const list = Object.entries(data).map(([id, val]) => ({
           id,
-          ...val,
+          ...(val as DiaryEntryRecord),
         })) as DiaryEntry[];
         setAllEntries(list);
       } else {
@@ -82,7 +102,6 @@ export default function Dashboard() {
 
   // Active entries (not in trash)
   const activeEntries = allEntries.filter((e) => !e.isTrashed);
-  const trashEntries = allEntries.filter((e) => !!e.isTrashed);
 
   // Daily reminder
   useEffect(() => {
@@ -129,25 +148,6 @@ export default function Dashboard() {
     [user]
   );
 
-  const restoreFromTrash = useCallback(
-    async (id: string) => {
-      if (!user) return;
-      await update(ref(db, `diaries/${user.uid}/${id}`), { 
-        isTrashed: false,
-        trashedAt: null
-      });
-    },
-    [user]
-  );
-
-  const permanentDelete = useCallback(
-    async (id: string) => {
-      if (!user) return;
-      await remove(ref(db, `diaries/${user.uid}/${id}`));
-    },
-    [user]
-  );
-
   // Filter & sort
   const filteredEntries = activeEntries
     .filter((e) => {
@@ -177,7 +177,7 @@ export default function Dashboard() {
     { key: "friends", icon: <Users className="w-4 h-4" />, label: t("dashboard.tab.friends") },
     { key: "shared", icon: <Mail className="w-4 h-4" />, label: t("dashboard.tab.shared") },
     { key: "my-diaries", icon: <BookOpen className="w-4 h-4" />, label: t("dashboard.tab.myDiaries") },
-    { key: "trash", icon: <Trash2 className="w-4 h-4" />, label: `${t("dashboard.tab.trash")} (${trashEntries.length})` },
+    { key: "trash", icon: <Trash2 className="w-4 h-4" />, label: t("dashboard.tab.trash") },
   ];
 
   return (
@@ -284,25 +284,34 @@ export default function Dashboard() {
               entries={filteredEntries}
               onEdit={(e) => { setEditEntry(e); setShowEditor(true); }}
               onDelete={moveToTrash}
-              onShare={() => setTab("friends")}
+              onShare={(entry) => {
+                localStorage.setItem(
+                  "cozy_share_target",
+                  JSON.stringify({
+                    entryId: entry.id,
+                  }),
+                );
+                window.dispatchEvent(new Event("trigger_compose_diary"));
+                setTab("shared");
+              }}
             />
           </>
         )}
 
         {tab === "calendar" && <DiaryCalendar entries={activeEntries} />}
         {tab === "stats" && <MoodStats entries={activeEntries} />}
+        {tab === "shared" && (
+          <div className="space-y-4">
+            <SendDiary entries={activeEntries} />
+          </div>
+        )}
         {tab === "friends" && (
           <div className="space-y-4">
-            <FriendRequests />
+            <FriendRequests highlightedRequestUid={requestFocusUid} />
             <FriendsPanel entries={activeEntries} />
           </div>
         )}
-        {tab === "shared" && (
-          <div className="space-y-4">
-            <SendDiary />
-          </div>
-        )}
-        {tab === "my-diaries" && <MyDiaries />}
+        {tab === "my-diaries" && <MyDiaries highlightedDiaryId={diaryFocusId} />}
         {tab === "trash" && <TrashBin />}
       </div>
 

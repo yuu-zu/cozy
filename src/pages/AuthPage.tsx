@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Shield, Lock, Mail, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Lock, Mail, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,15 +13,6 @@ import {
   verifyPendingRegistrationOtp,
 } from "@/lib/emailOtp";
 import { getReadableAuthError } from "@/lib/authErrorMessages";
-
-function validateStrongPassword(password: string): boolean {
-  if (password.length < 8) return false;
-  if (!/[A-Z]/.test(password)) return false;
-  if (!/[a-z]/.test(password)) return false;
-  if (!/\d/.test(password)) return false;
-  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) return false;
-  return true;
-}
 
 function getPasswordErrors(password: string, t: (key: string) => string): string[] {
   const errors: string[] = [];
@@ -35,7 +26,11 @@ function getPasswordErrors(password: string, t: (key: string) => string): string
   return errors;
 }
 
-type AuthMode = "login" | "register" | "forgot" | "verifyOtp";
+type AuthMode =
+  | "login"
+  | "register"
+  | "forgot"
+  | "verifyOtp";
 
 interface PendingRegistration {
   email: string;
@@ -90,6 +85,9 @@ export default function AuthPage() {
     }
 
     setMode(nextMode);
+    if (nextMode === "forgot") {
+      setPassword("");
+    }
     resetMessages();
   };
 
@@ -189,8 +187,11 @@ export default function AuthPage() {
         );
         return;
       } else if (mode === "forgot") {
-        await resetPassword(email);
+        const trimmedEmail = email.trim().toLowerCase();
+        await resetPassword(trimmedEmail);
         setSuccess(t("auth.resetSent"));
+        toast.success(t("auth.resetSent"));
+        return;
       } else if (mode === "verifyOtp") {
         if (!pendingRegistration) {
           setError(t("auth.sessionExpired"));
@@ -246,12 +247,13 @@ export default function AuthPage() {
           toast.success(t("auth.verifySuccessToast"));
         }
       }
-    } catch (err: any) {
-      if (err?.code === "auth/email-not-verified") {
+    } catch (err: unknown) {
+      if (typeof err === "object" && err !== null && "code" in err && err.code === "auth/email-not-verified") {
         const pendingAccount = {
           email: email.trim(),
           password,
-          displayName: err?.displayName || "",
+          displayName:
+            "displayName" in err && typeof err.displayName === "string" ? err.displayName : "",
         };
 
         await beginOtpVerification(
@@ -263,12 +265,12 @@ export default function AuthPage() {
         return;
       }
 
-      if (err?.code === "auth/email-already-in-use") {
+      if (typeof err === "object" && err !== null && "code" in err && err.code === "auth/email-already-in-use") {
         resetRegistrationFlow();
         setMode("register");
         setError(EMAIL_ALREADY_REGISTERED_MESSAGE);
       } else {
-        setError(getReadableAuthError(err));
+        setError(getReadableAuthError(err, t("auth.resetError")));
       }
     } finally {
       setLoading(false);
@@ -288,7 +290,7 @@ export default function AuthPage() {
       await sendOtpForRegistration(pendingRegistration);
       setSuccess(t("auth.resendOtpSuccess", { email: pendingRegistration.email }));
       toast.success(t("auth.resendOtpToast"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(getReadableAuthError(err, t("auth.resendOtpError")));
     } finally {
       setLoading(false);
@@ -319,9 +321,12 @@ export default function AuthPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="inline-flex items-center justify-center w-18 h-18 rounded-2xl bg-primary/10 mb-4">
-            <Shield className="w-8 h-8 text-primary" />
-          </div>
+          <img
+            src="/logo-hub.webp"
+            alt="Hub Logo"
+            className="h-12 w-auto object-contain mx-auto mb-4"
+            style={{ filter: "drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff)" }}
+          />
           <h1 className="text-3xl font-bold text-foreground tracking-wider">COZY</h1>
           <p className="text-muted-foreground mt-2 text-base">{subtitle}</p>
           {mode === "register" && (
@@ -351,20 +356,22 @@ export default function AuthPage() {
             </div>
           )}
 
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="email"
-              placeholder={t("auth.emailPlaceholder")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={mode === "verifyOtp"}
-              className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground disabled:opacity-70"
-            />
-          </div>
+          {(mode === "login" || mode === "register" || mode === "forgot" || mode === "verifyOtp") && (
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="email"
+                placeholder={t("auth.emailPlaceholder")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={mode === "verifyOtp"}
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-foreground placeholder:text-muted-foreground disabled:opacity-70"
+              />
+            </div>
+          )}
 
-          {mode !== "forgot" && mode !== "verifyOtp" && (
+          {(mode === "login" || mode === "register") && (
             <div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -399,7 +406,7 @@ export default function AuthPage() {
           {mode === "verifyOtp" && (
             <div className="space-y-3">
               <div className="relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
                   inputMode="numeric"
@@ -439,7 +446,10 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading || (mode === "register" && (!email.trim() || !displayName.trim() || passwordErrors.length > 0))}
+            disabled={
+              loading ||
+              (mode === "register" && (!email.trim() || !displayName.trim() || passwordErrors.length > 0))
+            }
             className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all disabled:opacity-50"
           >
             {loading

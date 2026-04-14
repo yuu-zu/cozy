@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { equalTo, get, onValue, orderByChild, query, ref, remove, set } from "firebase/database";
+import { equalTo, get, onValue, orderByChild, query, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Friend } from "@/types/diary";
-import { Search, UserPlus, Users, Key, Copy, Trash2 } from "lucide-react";
+import { Search, UserPlus, Users, Key, Copy, Trash2, CheckCircle2, Clock3, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { formatPublicKey } from "@/lib/utils";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { createNotification } from "@/lib/notifications";
 
 interface Props {
   entries?: unknown[];
@@ -20,6 +21,11 @@ interface SearchResult {
   publicKey: string;
 }
 
+type RelationshipState = "none" | "friend" | "outgoing" | "incoming";
+type ContactRecord = { displayName?: string; publicKey?: string };
+type RequestRecord = { status?: string };
+type UserRecord = { displayName?: string; email?: string; publicKey?: string };
+
 export default function FriendsPanel(_: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -29,12 +35,15 @@ export default function FriendsPanel(_: Props) {
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendUidSet, setFriendUidSet] = useState<Set<string>>(new Set());
+  const [outgoingRequestUids, setOutgoingRequestUids] = useState<Set<string>>(new Set());
+  const [incomingRequestUids, setIncomingRequestUids] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [friendToRemove, setFriendToRemove] = useState<Friend | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
     const contactsRef = ref(db, `contacts/${user.uid}`);
     const unsubscribe = onValue(contactsRef, (snapshot) => {
@@ -42,20 +51,68 @@ export default function FriendsPanel(_: Props) {
 
       if (!data) {
         setFriends([]);
+        setFriendUidSet(new Set());
         return;
       }
 
-      const nextFriends = Object.entries(data).map(([uid, value]: [string, any]) => ({
-        uid,
-        displayName: value.displayName,
-        publicKey: value.publicKey,
-      }));
+      const nextFriends = Object.entries(data).map(([uid, value]) => {
+        const contact = value as ContactRecord;
+        return {
+          uid,
+          displayName: contact.displayName || t("dashboard.tab.myDiaries"),
+          publicKey: contact.publicKey || "",
+        };
+      });
 
       setFriends(nextFriends);
+      setFriendUidSet(new Set(nextFriends.map((friend) => friend.uid)));
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, t]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const friendRequestsRef = ref(db, "friend_requests");
+    const unsubscribe = onValue(friendRequestsRef, (snapshot) => {
+      const data = snapshot.val();
+      const nextOutgoing = new Set<string>();
+      const nextIncoming = new Set<string>();
+
+      if (data && typeof data === "object") {
+        Object.entries(data).forEach(([recipientUid, requests]) => {
+          if (!requests || typeof requests !== "object") return;
+
+          if (recipientUid === user.uid) {
+            Object.entries(requests).forEach(([senderUid, requestValue]) => {
+              if ((requestValue as RequestRecord)?.status === "pending") {
+                nextIncoming.add(senderUid);
+              }
+            });
+            return;
+          }
+
+          if ((requests as Record<string, RequestRecord>)[user.uid]?.status === "pending") {
+            nextOutgoing.add(recipientUid);
+          }
+        });
+      }
+
+      setOutgoingRequestUids(nextOutgoing);
+      setIncomingRequestUids(nextIncoming);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const getRelationshipState = (targetUid?: string): RelationshipState => {
+    if (!targetUid) return "none";
+    if (friendUidSet.has(targetUid)) return "friend";
+    if (outgoingRequestUids.has(targetUid)) return "outgoing";
+    if (incomingRequestUids.has(targetUid)) return "incoming";
+    return "none";
+  };
 
   const handleSearch = async () => {
     if (!user) return;
@@ -81,7 +138,7 @@ export default function FriendsPanel(_: Props) {
         return;
       }
 
-      const [uid, userData] = Object.entries(snapshot.val())[0] as [string, any];
+      const [uid, userData] = Object.entries(snapshot.val())[0] as [string, UserRecord];
 
       if (uid === user.uid) {
         setError(t("friends.error_self_invite"));
@@ -94,8 +151,18 @@ export default function FriendsPanel(_: Props) {
         email: userData.email,
         publicKey: userData.publicKey,
       });
-    } catch (err: any) {
-      setError(err.message || t("friends.error_search"));
+
+      const relationshipState = getRelationshipState(uid);
+      if (relationshipState === "friend") {
+        setSuccess(t("friends.status_already_friends"));
+      } else if (relationshipState === "outgoing") {
+        setSuccess(t("friends.status_invite_sent"));
+      } else if (relationshipState === "incoming") {
+        setSuccess(t("friends.status_request_received"));
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("friends.error_search");
+      setError(message || t("friends.error_search"));
     } finally {
       setSearching(false);
     }
@@ -109,27 +176,64 @@ export default function FriendsPanel(_: Props) {
     setSuccess("");
 
     try {
-      const currentUserSnapshot = await get(ref(db, `users/${user.uid}`));
-      const currentUserData = currentUserSnapshot.val();
+      const relationshipState = getRelationshipState(searchResult.uid);
+      if (relationshipState === "friend") {
+        throw new Error(t("friends.error_already_friends"));
+      }
+      if (relationshipState === "outgoing") {
+        throw new Error(t("friends.error_request_exists"));
+      }
+      if (relationshipState === "incoming") {
+        throw new Error(t("friends.error_request_received"));
+      }
 
+      const currentUserSnapshot = await get(ref(db, `users/${user.uid}`));
       if (!currentUserSnapshot.exists()) {
         throw new Error(t("sendDiary.noFriends"));
       }
 
-      await set(ref(db, `friend_requests/${searchResult.uid}/${user.uid}`), {
-        status: "pending",
-        senderEmail: currentUserData.email || user.email || "",
-        senderName: currentUserData.displayName || user.displayName || t("dashboard.tab.myDiaries"),
-        senderPublicKey: currentUserData.publicKey,
-        createdAt: Date.now(),
+      const currentUserData = currentUserSnapshot.val() as UserRecord;
+      const [existingContactSnapshot, existingOutgoingSnapshot, existingIncomingSnapshot] = await Promise.all([
+        get(ref(db, `contacts/${user.uid}/${searchResult.uid}`)),
+        get(ref(db, `friend_requests/${searchResult.uid}/${user.uid}`)),
+        get(ref(db, `friend_requests/${user.uid}/${searchResult.uid}`)),
+      ]);
+
+      if (existingContactSnapshot.exists()) {
+        throw new Error(t("friends.error_already_friends"));
+      }
+      if (existingOutgoingSnapshot.exists() && (existingOutgoingSnapshot.val() as RequestRecord)?.status === "pending") {
+        throw new Error(t("friends.error_request_exists"));
+      }
+      if (existingIncomingSnapshot.exists() && (existingIncomingSnapshot.val() as RequestRecord)?.status === "pending") {
+        throw new Error(t("friends.error_request_received"));
+      }
+
+      await update(ref(db), {
+        [`friend_requests/${searchResult.uid}/${user.uid}`]: {
+          status: "pending",
+          senderEmail: currentUserData.email || user.email || "",
+          senderName: currentUserData.displayName || user.displayName || t("dashboard.tab.myDiaries"),
+          senderPublicKey: currentUserData.publicKey,
+          createdAt: Date.now(),
+        },
+      });
+
+      await createNotification({
+        userUid: searchResult.uid,
+        type: "friend_request",
+        title: t("notifications.friend_request_title"),
+        message: t("notifications.friend_request_message", {
+          name: currentUserData.displayName || user.displayName || t("notifications.someone"),
+        }),
+        targetId: user.uid,
       });
 
       setSuccess(t("friends.invite_sent"));
-      setSearchResult(null);
-      setEmailInput("");
       toast.success(t("friends.invite_sent"));
-    } catch (err: any) {
-      setError(err.message || t("friends.error_search"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("friends.error_search");
+      setError(message || t("friends.error_search"));
     } finally {
       setSendingInvite(false);
     }
@@ -152,20 +256,46 @@ export default function FriendsPanel(_: Props) {
     setSuccess("");
 
     try {
-      await remove(ref(db, `contacts/${user.uid}/${friend.uid}`));
-      await remove(ref(db, `contacts/${friend.uid}/${user.uid}`));
+      await update(ref(db), {
+        [`contacts/${user.uid}/${friend.uid}`]: null,
+        [`contacts/${friend.uid}/${user.uid}`]: null,
+        [`friend_requests/${user.uid}/${friend.uid}`]: null,
+        [`friend_requests/${friend.uid}/${user.uid}`]: null,
+      });
 
       setSuccess(t("friends.removed", { name: friend.displayName }));
       toast.success(t("friends.removed", { name: friend.displayName }));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("friends.error_remove");
       console.error("Delete friend error:", err);
-      setError(err.message || t("friends.error_remove"));
+      setError(message || t("friends.error_remove"));
       toast.error(t("friends.error_remove"));
     } finally {
       setRemovingUid(null);
       setFriendToRemove(null);
     }
   };
+
+  const relationshipState = searchResult ? getRelationshipState(searchResult.uid) : "none";
+  const inviteDisabled = sendingInvite || relationshipState !== "none";
+  const inviteButtonLabel =
+    relationshipState === "friend"
+      ? t("friends.status_already_friends")
+      : relationshipState === "outgoing"
+        ? t("friends.status_invite_sent")
+        : relationshipState === "incoming"
+          ? t("friends.status_request_received")
+          : sendingInvite
+            ? t("friends.sending_invite")
+            : t("friends.send_invite_button");
+  const InviteIcon =
+    relationshipState === "friend"
+      ? CheckCircle2
+      : relationshipState === "outgoing"
+        ? Clock3
+        : relationshipState === "incoming"
+          ? Inbox
+          : UserPlus;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -200,11 +330,15 @@ export default function FriendsPanel(_: Props) {
             <p className="text-sm text-muted-foreground mt-1">{searchResult.email}</p>
             <button
               onClick={handleSendFriendRequest}
-              disabled={sendingInvite}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-base font-medium disabled:opacity-50"
+              disabled={inviteDisabled}
+              className={`mt-3 inline-flex items-center gap-2 px-4 py-3 rounded-xl text-base font-medium disabled:cursor-not-allowed ${
+                relationshipState === "none"
+                  ? "bg-primary text-primary-foreground disabled:opacity-50"
+                  : "bg-secondary text-muted-foreground disabled:opacity-100"
+              }`}
             >
-              <UserPlus className="w-4 h-4" />
-              {sendingInvite ? t("friends.sending_invite") : t("friends.send_invite_button")}
+              <InviteIcon className="w-4 h-4" />
+              {inviteButtonLabel}
             </button>
           </div>
         )}
