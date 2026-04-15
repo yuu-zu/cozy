@@ -214,7 +214,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border py-12 px-4">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <img
@@ -243,6 +243,17 @@ export default function LandingPage() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t('landing.footer.address')}
             </p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-foreground mb-3">Tài liệu</h4>
+            <a
+              href="https://docs.google.com/document/d/1DAtWSVkmxYRPYk9tytT1dYEHqgKiLEhYeOq1cTKo9aw/edit?tab=t.0"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors inline-block mb-2"
+            >
+              Giải thích Code
+            </a>
           </div>
           <div>
             <h4 className="font-semibold text-foreground mb-3">{t('landing.footer.contact')}</h4>
